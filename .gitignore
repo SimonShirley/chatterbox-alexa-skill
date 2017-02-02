@@ -1,3 +1,4 @@
 node_modules
 .idea
 *.zip
+auth_token.txt
