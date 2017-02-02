@@ -1,0 +1,23 @@
+{
+  "name": "chatterbox-alexa-skill",
+  "version": "1.0.0",
+  "description": "Amazon Alexa skill for Chatterbox Talking Newspaper",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "alexa",
+    "skill",
+    "audio player"
+  ],
+  "author": "Simon Shirley",
+  "license": "See license in ../LICENSE.txt",
+  "dependencies": {
+    "alexa-sdk": "^1.0.4"
+  },
+  "repository" : {
+    "type" : "git",
+    "url" : "https://github.com/SimonShirley/chatterbox-alexa-skill"
+  }
+}

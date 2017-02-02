@@ -1,0 +1,7 @@
+Skill derived from sample code
+
+Interactive Adventure Game Tool
+Copyright 2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Chatterbox Alexa Skill
+Copyright 2017 Simon Shirley. cbtn.org.uk.
