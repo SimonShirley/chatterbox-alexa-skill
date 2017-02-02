@@ -1,9 +1,11 @@
 "use strict";
 
+var appInfo = require("./appInfo");
+
 module.exports = Object.freeze({
     
     // Skill App ID from the developer portal.
-    appId : 'amzn1.ask.skill.edbf5157-31a6-4fce-875d-008626f73fee',
+    appId : appInfo["appId"],
     
     //  DynamoDB Table name
     dynamoDBTableName : 'Chatterbox',
