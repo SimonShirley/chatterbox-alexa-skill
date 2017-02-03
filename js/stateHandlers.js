@@ -11,7 +11,7 @@ var stateHandlers = {
          */
         'LaunchRequest' : function () {
             // Initialize Attributes
-            this.attributes['playOrder'] = Array.apply(null, {length: audioData.length}).map(Number.call, Number);
+            this.attributes['playOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
             this.attributes['index'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['loop'] = true;
@@ -29,7 +29,7 @@ var stateHandlers = {
         'Chatterbox' : function () {
             if (!this.attributes['playOrder']) {
                 // Initialize Attributes if undefined.
-                this.attributes['playOrder'] = Array.apply(null, {length: audioData.length}).map(Number.call, Number);
+                this.attributes['playOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
                 this.attributes['index'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
                 this.attributes['loop'] = true;
@@ -86,15 +86,15 @@ var stateHandlers = {
                 reprompt = 'You can say, play the audio, to begin.';
             } else {
                 this.handler.state = constants.states.RESUME_DECISION_MODE;
-                message = 'You were listening to ' + audioData[this.attributes['playOrder'][this.attributes['index']]].title +
-                    ' Would you like to resume?';
+                //message = 'You were listening to ' + audioData[this.attributes['playOrder'][this.attributes['index']]].title + ' Would you like to resume?';
+                message = 'You were listening to edition number ' + audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString() + '. Would you like to resume?';
                 reprompt = 'You can say yes to resume or no to play from the top.';
             }
 
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
         },
-        'PlayAudio' : function () { controller.play.call(this) },
+        'Chatterbox' : function () { controller.play.call(this) },
         'AMAZON.NextIntent' : function () { controller.playNext.call(this) },
         'AMAZON.PreviousIntent' : function () { controller.playPrevious.call(this) },
         'AMAZON.PauseIntent' : function () { controller.stop.call(this) },
@@ -136,8 +136,7 @@ var stateHandlers = {
          *  All Intent Handlers for state : RESUME_DECISION_MODE
          */
         'LaunchRequest' : function () {
-            var message = 'You were listening to ' + audioData[this.attributes['playOrder'][this.attributes['index']]].title +
-                ' Would you like to resume?';
+            var message = 'You were listening to edition number ' + audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString() + '. Would you like to resume?';
             var reprompt = 'You can say yes to resume or no to play from the top.';
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
@@ -195,10 +194,12 @@ var controller = function () {
 
             var token = String(this.attributes['playOrder'][this.attributes['index']]);
             var playBehavior = 'REPLACE_ALL';
-            var podcast = audioData[this.attributes['playOrder'][this.attributes['index']]];
+            //var podcast = audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]];
+            var podcast = audioData.chatterbox[0].tracks[this.attributes['index']];
             var offsetInMilliseconds = this.attributes['offsetInMilliseconds'];
             // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
             this.attributes['enqueuedToken'] = null;
+
 
             if (canThrowCard.call(this)) {
                 var cardTitle = 'Playing ' + podcast.title;
@@ -206,7 +207,7 @@ var controller = function () {
                 this.response.cardRenderer(cardTitle, cardContent, null);
             }
 
-            this.response.audioPlayerPlay(playBehavior, podcast.url, token, null, offsetInMilliseconds);
+            this.response.audioPlayerPlay(playBehavior, podcast.mp3, token, null, offsetInMilliseconds);
             this.emit(':responseReady');
         },
         stop: function () {
@@ -330,12 +331,16 @@ function canThrowCard() {
      * In response to a PlaybackController Request (remote control events) we cannot issue a card,
      * Thus adding restriction of request type being "IntentRequest".
      */
+    /*
     if (this.event.request.type === 'IntentRequest' && this.attributes['playbackIndexChanged']) {
         this.attributes['playbackIndexChanged'] = false;
         return true;
     } else {
         return false;
     }
+    */
+
+    return false;
 }
 
 function shuffleOrder(callback) {
