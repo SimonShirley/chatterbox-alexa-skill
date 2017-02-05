@@ -3,6 +3,8 @@
 var Alexa = require('alexa-sdk');
 var audioData = require('./audioAssets');
 var constants = require('./constants');
+var strings = require('./strings');
+var format = require('string-format');
 
 var stateHandlers = {
     startModeIntentHandlers : Alexa.CreateStateHandler(constants.states.START_MODE, {
@@ -14,14 +16,14 @@ var stateHandlers = {
             this.attributes['playOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
             this.attributes['index'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['loop'] = true;
+            this.attributes['loop'] = false;
             this.attributes['shuffle'] = false;
             this.attributes['playbackIndexChanged'] = true;
             //  Change state to START_MODE
             this.handler.state = constants.states.START_MODE;
 
-            var message = 'Welcome to the AWS Podcast. You can say, play the audio to begin the podcast.';
-            var reprompt = 'You can say, play the audio, to begin.';
+            var message = strings.start_mode_launch_message;
+            var reprompt = strings.start_mode_launch_reprompt;
 
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
@@ -41,7 +43,7 @@ var stateHandlers = {
             controller.play.call(this);
         },
         'AMAZON.HelpIntent' : function () {
-            var message = 'Welcome to the AWS Podcast. You can say, play the audio, to begin the podcast.';
+            var message = strings.start_mode_help;
             this.response.speak(message).listen(message);
             this.emit(':responseReady');
         },
@@ -59,7 +61,7 @@ var stateHandlers = {
             // No session ended logic
         },
         'Unhandled' : function () {
-            var message = 'Sorry, I could not understand. Please say, play the audio, to begin the audio.';
+            var message = strings.unhandled_request;
             this.response.speak(message).listen(message);
             this.emit(':responseReady');
         }
@@ -80,15 +82,15 @@ var stateHandlers = {
              */
             var message;
             var reprompt;
+
             if (this.attributes['playbackFinished']) {
                 this.handler.state = constants.states.START_MODE;
-                message = 'Welcome to the AWS Podcast. You can say, play the audio to begin the podcast.';
-                reprompt = 'You can say, play the audio, to begin.';
+                message = strings.start_mode_launch_message;
+                reprompt = strings.start_mode_launch_reprompt;
             } else {
                 this.handler.state = constants.states.RESUME_DECISION_MODE;
-                //message = 'You were listening to ' + audioData[this.attributes['playOrder'][this.attributes['index']]].title + ' Would you like to resume?';
-                message = 'You were listening to edition number ' + audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString() + '. Would you like to resume?';
-                reprompt = 'You can say yes to resume or no to play from the top.';
+                message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString(), audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].recorded.toString());
+                reprompt = strings.resume_launch_reprompt;
             }
 
             this.response.speak(message).listen(reprompt);
@@ -108,8 +110,7 @@ var stateHandlers = {
         'AMAZON.StartOverIntent' : function () { controller.startOver.call(this) },
         'AMAZON.HelpIntent' : function () {
             // This will called while audio is playing and a user says "ask <invocation_name> for help"
-            var message = 'You are listening to the AWS Podcast. You can say, Next or Previous to navigate through the playlist. ' +
-                'At any time, you can say Pause to pause the audio and Resume to resume.';
+            var message = strings.play_mode_help;
             this.response.speak(message).listen(message);
             this.emit(':responseReady');
         },
@@ -117,7 +118,7 @@ var stateHandlers = {
             // No session ended logic
         },
         'Unhandled' : function () {
-            var message = 'Sorry, I could not understand. You can say, Next or Previous to navigate through the playlist.';
+            var message = strings.play_mode_unhandled_request;
             this.response.speak(message).listen(message);
             this.emit(':responseReady');
         }
@@ -136,27 +137,26 @@ var stateHandlers = {
          *  All Intent Handlers for state : RESUME_DECISION_MODE
          */
         'LaunchRequest' : function () {
-            var message = 'You were listening to edition number ' + audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString() + '. Would you like to resume?';
-            var reprompt = 'You can say yes to resume or no to play from the top.';
+            var message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString(), audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].recorded.toString());
+            var reprompt = strings.resume_launch_reprompt;
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
         },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () { controller.reset.call(this) },
         'AMAZON.HelpIntent' : function () {
-            var message = 'You were listening to ' + audioData[this.attributes['index']].title +
-                ' Would you like to resume?';
-            var reprompt = 'You can say yes to resume or no to play from the top.';
+            var message = format.format(strings.resume_help_message, audioData[this.attributes['index']].title);
+            var reprompt = strings.resume_launch_reprompt;
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
         },
         'AMAZON.StopIntent' : function () {
-            var message = 'Good bye.';
+            var message = strings.exit_message;
             this.response.speak(message);
             this.emit(':responseReady');
         },
         'AMAZON.CancelIntent' : function () {
-            var message = 'Good bye.';
+            var message = strings.exit_message;
             this.response.speak(message);
             this.emit(':responseReady');
         },
@@ -164,7 +164,7 @@ var stateHandlers = {
             // No session ended logic
         },
         'Unhandled' : function () {
-            var message = 'Sorry, this is not a valid command. Please say help to hear what you can say.';
+            var message = strings.resume_unhandled_request;
             this.response.speak(message).listen(message);
             this.emit(':responseReady');
         }
@@ -234,7 +234,7 @@ var controller = function () {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     this.handler.state = constants.states.START_MODE;
 
-                    var message = 'You have reached at the end of the playlist.';
+                    var message = strings.next_track_end_of_list;
                     this.response.speak(message).audioPlayerStop();
                     return this.emit(':responseReady');
                 }
@@ -262,7 +262,7 @@ var controller = function () {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     this.handler.state = constants.states.START_MODE;
 
-                    var message = 'You have reached at the start of the playlist.';
+                    var message = strings.previous_track_end_of_list;
                     this.response.speak(message).audioPlayerStop();
                     return this.emit(':responseReady');
                 }
