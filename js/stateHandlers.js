@@ -13,12 +13,12 @@ var stateHandlers = {
          */
         'LaunchRequest' : function () {
             // Initialize Attributes
-            this.attributes['playOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
-            this.attributes['index'] = 0;
+            this.attributes['editionTrackOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
+            this.attributes['editionListIndex'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['loop'] = false;
             this.attributes['shuffle'] = false;
-            this.attributes['playbackIndexChanged'] = true;
+            this.attributes['playbackEditionListIndexChanged'] = true;
             //  Change state to START_MODE
             this.handler.state = constants.states.START_MODE;
 
@@ -29,14 +29,14 @@ var stateHandlers = {
             this.emit(':responseReady');
         },
         'Chatterbox' : function () {
-            if (!this.attributes['playOrder']) {
+            if (!this.attributes['editionTrackOrder']) {
                 // Initialize Attributes if undefined.
-                this.attributes['playOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
-                this.attributes['index'] = 0;
+                this.attributes['editionTrackOrder'] = Array.apply(null, {length: audioData.chatterbox[0].tracks.length}).map(Number.call, Number);
+                this.attributes['editionListIndex'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
                 this.attributes['loop'] = true;
                 this.attributes['shuffle'] = false;
-                this.attributes['playbackIndexChanged'] = true;
+                this.attributes['playbackEditionListIndexChanged'] = true;
                 //  Change state to START_MODE
                 this.handler.state = constants.states.START_MODE;
             }
@@ -89,7 +89,7 @@ var stateHandlers = {
                 reprompt = strings.start_mode_launch_reprompt;
             } else {
                 this.handler.state = constants.states.RESUME_DECISION_MODE;
-                message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString(), audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].recorded.toString());
+                message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]].edition.toString(), audioData.chatterbox[this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]].recorded.toString());
                 reprompt = strings.resume_launch_reprompt;
             }
 
@@ -137,7 +137,7 @@ var stateHandlers = {
          *  All Intent Handlers for state : RESUME_DECISION_MODE
          */
         'LaunchRequest' : function () {
-            var message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].edition.toString(), audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]].recorded.toString());
+            var message = format.format(strings.resume_launch_message, audioData.chatterbox[this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]].edition.toString(), audioData.chatterbox[this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]].recorded.toString());
             var reprompt = strings.resume_launch_reprompt;
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
@@ -145,7 +145,7 @@ var stateHandlers = {
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () { controller.reset.call(this) },
         'AMAZON.HelpIntent' : function () {
-            var message = format.format(strings.resume_help_message, audioData[this.attributes['index']].title);
+            var message = format.format(strings.resume_help_message, audioData[this.attributes['editionListIndex']].title);
             var reprompt = strings.resume_launch_reprompt;
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
@@ -186,16 +186,16 @@ var controller = function () {
 
             if (this.attributes['playbackFinished']) {
                 // Reset to top of the playlist when reached end.
-                this.attributes['index'] = 0;
+                this.attributes['editionListIndex'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
-                this.attributes['playbackIndexChanged'] = true;
+                this.attributes['playbackEditionListIndexChanged'] = true;
                 this.attributes['playbackFinished'] = false;
             }
 
-            var token = String(this.attributes['playOrder'][this.attributes['index']]);
+            var token = String(this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]);
             var playBehavior = 'REPLACE_ALL';
-            //var podcast = audioData.chatterbox[this.attributes['playOrder'][this.attributes['index']]];
-            var podcast = audioData.chatterbox[0].tracks[this.attributes['index']];
+            //var podcast = audioData.chatterbox[this.attributes['editionTrackOrder'][this.attributes['editionListIndex']]];
+            var podcast = audioData.chatterbox[0].tracks[this.attributes['editionListIndex']];
             var offsetInMilliseconds = this.attributes['offsetInMilliseconds'];
             // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
             this.attributes['enqueuedToken'] = null;
@@ -221,15 +221,15 @@ var controller = function () {
         playNext: function () {
             /*
              *  Called when AMAZON.NextIntent or PlaybackController.NextCommandIssued is invoked.
-             *  Index is computed using token stored when AudioPlayer.PlaybackStopped command is received.
+             *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var index = this.attributes['index'];
-            index += 1;
+            var editionListIndex = this.attributes['editionListIndex'];
+            editionListIndex += 1;
             // Check for last audio file.
-            if (index === audioData.length) {
+            if (editionListIndex === audioData.length) {
                 if (this.attributes['loop']) {
-                    index = 0;
+                    editionListIndex = 0;
                 } else {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     this.handler.state = constants.states.START_MODE;
@@ -240,24 +240,24 @@ var controller = function () {
                 }
             }
             // Set values to attributes.
-            this.attributes['index'] = index;
+            this.attributes['editionListIndex'] = editionListIndex;
             this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['playbackIndexChanged'] = true;
+            this.attributes['playbackEditionListIndexChanged'] = true;
 
             controller.play.call(this);
         },
         playPrevious: function () {
             /*
              *  Called when AMAZON.PreviousIntent or PlaybackController.PreviousCommandIssued is invoked.
-             *  Index is computed using token stored when AudioPlayer.PlaybackStopped command is received.
+             *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var index = this.attributes['index'];
-            index -= 1;
+            var editionListIndex = this.attributes['editionListIndex'];
+            editionListIndex -= 1;
             // Check for last audio file.
-            if (index === -1) {
+            if (editionListIndex === -1) {
                 if (this.attributes['loop']) {
-                    index = audioData.length - 1;
+                    editionListIndex = audioData.length - 1;
                 } else {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     this.handler.state = constants.states.START_MODE;
@@ -268,9 +268,9 @@ var controller = function () {
                 }
             }
             // Set values to attributes.
-            this.attributes['index'] = index;
+            this.attributes['editionListIndex'] = editionListIndex;
             this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['playbackIndexChanged'] = true;
+            this.attributes['playbackEditionListIndexChanged'] = true;
 
             controller.play.call(this);
         },
@@ -293,10 +293,10 @@ var controller = function () {
             this.attributes['shuffle'] = true;
             shuffleOrder((newOrder) => {
                 // Play order have been shuffled. Re-initializing indices and playing first song in shuffled order.
-                this.attributes['playOrder'] = newOrder;
-                this.attributes['index'] = 0;
+                this.attributes['editionTrackOrder'] = newOrder;
+                this.attributes['editionListIndex'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
-                this.attributes['playbackIndexChanged'] = true;
+                this.attributes['playbackEditionListIndexChanged'] = true;
                 controller.play.call(this);
             });
         },
@@ -304,9 +304,9 @@ var controller = function () {
             // Turn off shuffle play. 
             if (this.attributes['shuffle']) {
                 this.attributes['shuffle'] = false;
-                // Although changing index, no change in audio file being played as the change is to account for reordering playOrder
-                this.attributes['index'] = this.attributes['playOrder'][this.attributes['index']];
-                this.attributes['playOrder'] = Array.apply(null, {length: audioData.length}).map(Number.call, Number);
+                // Although changing editionListIndex, no change in audio file being played as the change is to account for reordering editionTrackOrder
+                this.attributes['editionListIndex'] = this.attributes['editionTrackOrder'][this.attributes['editionListIndex']];
+                this.attributes['editionTrackOrder'] = Array.apply(null, {length: audioData.length}).map(Number.call, Number);
             }
             controller.play.call(this);
         },
@@ -317,9 +317,9 @@ var controller = function () {
         },
         reset: function () {
             // Reset to top of the playlist.
-            this.attributes['index'] = 0;
+            this.attributes['editionListIndex'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['playbackIndexChanged'] = true;
+            this.attributes['playbackEditionListIndexChanged'] = true;
             controller.play.call(this);
         }
     }
@@ -332,8 +332,8 @@ function canThrowCard() {
      * Thus adding restriction of request type being "IntentRequest".
      */
     /*
-    if (this.event.request.type === 'IntentRequest' && this.attributes['playbackIndexChanged']) {
-        this.attributes['playbackIndexChanged'] = false;
+    if (this.event.request.type === 'IntentRequest' && this.attributes['playbackEditionListIndexChanged']) {
+        this.attributes['playbackEditionListIndexChanged'] = false;
         return true;
     } else {
         return false;
@@ -346,15 +346,15 @@ function canThrowCard() {
 function shuffleOrder(callback) {
     // Algorithm : Fisher-Yates shuffle
     var array = Array.apply(null, {length: audioData.length}).map(Number.call, Number);
-    var currentIndex = array.length;
-    var temp, randomIndex;
+    var currenteditionListIndex = array.length;
+    var temp, randomeditionListIndex;
 
-    while (currentIndex >= 1) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-        temp = array[currentIndex];
-        array[currentIndex] = array[randomIndex];
-        array[randomIndex] = temp;
+    while (currenteditionListIndex >= 1) {
+        randomeditionListIndex = Math.floor(Math.random() * currenteditionListIndex);
+        currenteditionListIndex -= 1;
+        temp = array[currenteditionListIndex];
+        array[currenteditionListIndex] = array[randomeditionListIndex];
+        array[randomeditionListIndex] = temp;
     }
     callback(array);
 }
