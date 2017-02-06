@@ -8,7 +8,7 @@ module.exports = Object.freeze({
     appId : appInfo["appId"],
     
     //  DynamoDB Table name
-    dynamoDBTableName : 'Chatterbox',
+    dynamoDBTableName : 'ChatterboxDynamoTable',
     
     /*
      *  States:
