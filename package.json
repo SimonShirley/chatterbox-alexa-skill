@@ -1,0 +1,25 @@
+{
+  "name": "chatterbox-alexa-skill",
+  "version": "1.0.0",
+  "description": "Alexa skill for Chatterbox, the Talking Newspaper.",
+  "main": "js/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SimonShirley/chatterbox-alexa-skill.git"
+  },
+  "keywords": [
+    "alexa",
+    "Chatterbox",
+    "talking",
+    "newspaper"
+  ],
+  "author": "Simon Shirley",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SimonShirley/chatterbox-alexa-skill/issues"
+  },
+  "homepage": "https://github.com/SimonShirley/chatterbox-alexa-skill#readme"
+}
