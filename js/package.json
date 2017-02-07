@@ -14,10 +14,11 @@
   "author": "Simon Shirley",
   "license": "See license in ../LICENSE.txt",
   "dependencies": {
-    "alexa-sdk": "^1.0.4"
+    "alexa-sdk": "^1.0.4",
+    "string-format": "^0.5.0"
   },
-  "repository" : {
-    "type" : "git",
-    "url" : "https://github.com/SimonShirley/chatterbox-alexa-skill"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SimonShirley/chatterbox-alexa-skill"
   }
 }
