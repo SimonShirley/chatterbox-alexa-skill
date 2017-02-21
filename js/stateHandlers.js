@@ -16,8 +16,8 @@ var stateHandlers = {
         'LaunchRequest' : function () {
             // Initialize Attributes
             this.attributes['editionListIndex'] = 0;
-            //this.attributes['editionTrackOrder'] = Array.apply(null, {length: audioData.chatterbox[this.attributes['editionListIndex']].tracks.length}).map(Number.call, Number);
             this.attributes['editionCurrentTrack'] = 0;
+            this.attributes['currentEdition'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['loop'] = false;
             this.attributes['shuffle'] = false;
@@ -35,8 +35,8 @@ var stateHandlers = {
             if (!this.attributes['editionListIndex']) {
                 // Initialize Attributes if undefined.
                 this.attributes['editionListIndex'] = 0;
-                //this.attributes['editionTrackOrder'] = Array.apply(null, {length: audioData.chatterbox[this.attributes['editionListIndex']].tracks.length}).map(Number.call, Number);
                 this.attributes['editionCurrentTrack'] = 0;
+                this.attributes['currentEdition'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
                 this.attributes['loop'] = false;
                 this.attributes['shuffle'] = false;
@@ -192,6 +192,7 @@ var controller = function () {
                 // Reset to top of the playlist when reached end.
                 this.attributes['editionListIndex'] = 0;
                 this.attributes['editionCurrentTrack'] = 0;
+                this.attributes['currentEdition'] = 0;
                 this.attributes['offsetInMilliseconds'] = 0;
                 this.attributes['playbackEditionCurrentTrackChanged'] = true;
                 this.attributes['playbackFinished'] = false;
@@ -344,6 +345,7 @@ var controller = function () {
             // Reset to top of the playlist.
             this.attributes['editionListIndex'] = 0;
             this.attributes['editionCurrentTrack'] = 0;
+            this.attributes['currentEdition'] = 0;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
             controller.play.call(this);

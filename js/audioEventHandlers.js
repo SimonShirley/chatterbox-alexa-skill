@@ -3,7 +3,6 @@
 var Alexa = require('alexa-sdk');
 var audioData = require('./audioAssets');
 var constants = require('./constants');
-var strings = require('./strings');
 var format = require('string-format');
 
 format.extend(String.prototype);
@@ -18,6 +17,7 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
          */
         this.attributes['token'] = getToken.call(this);
         this.attributes['editionCurrentTrack'] = getCurrentTrack.call(this);
+        this.attributes['currentEdition'] = getCurrentEdition(this);
         this.attributes['playbackFinished'] = false;
         this.emit(':saveState', true);
     },
@@ -39,6 +39,7 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
          */
         this.attributes['token'] = getToken.call(this);
         this.attributes['editionCurrentTrack'] = getCurrentTrack.call(this);
+        this.attributes['currentEdition'] = getCurrentEdition(this);
         this.attributes['offsetInMilliseconds'] = getOffsetInMilliseconds.call(this);
         this.emit(':saveState', true);
     },
@@ -101,6 +102,13 @@ function getCurrentTrack() {
     var tokenValue = this.event.request.token;
     var tokenSegments = tokenValue.split("_");
     return Number(tokenSegments[1]);
+}
+
+function getCurrentEdition() {
+    // Extracting index from the token received in the request.
+    var tokenValue = this.event.request.token;
+    var tokenSegments = tokenValue.split("_");
+    return Number(tokenSegments[0]);
 }
 
 function getOffsetInMilliseconds() {
