@@ -228,13 +228,19 @@ var controller = function () {
              *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var edtitionTrackIndex = parseInt(this.attributes['editionCurrentTrack']);
-            edtitionTrackIndex++;
+            var editionTrackIndex = -1;
+            
+            if (typeof(this.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(this.attributes['editionCurrentTrack'])))
+                editionTrackIndex = -1;
+            else
+                editionTrackIndex = Number(this.attributes['editionCurrentTrack']);
+
+            editionTrackIndex++;
 
             // Check for last audio file.
-            if (edtitionTrackIndex >= audioData.chatterbox[this.attributes['editionListIndex']].tracks.length) {
+            if (editionTrackIndex >= audioData.chatterbox[this.attributes['editionListIndex']].tracks.length) {
                 if (this.attributes['loop']) {
-                    edtitionTrackIndex = 0;
+                    editionTrackIndex = 0;
                 } else {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     this.handler.state = constants.states.START_MODE;
@@ -246,7 +252,7 @@ var controller = function () {
             }
 
             // Set values to attributes.
-            this.attributes['editionCurrentTrack'] = edtitionTrackIndex;
+            this.attributes['editionCurrentTrack'] = editionTrackIndex;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
 
@@ -258,7 +264,13 @@ var controller = function () {
              *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var editionTrackIndex = parseInt(this.attributes['editionCurrentTrack']);
+            var editionTrackIndex = 0;
+            
+            if (typeof(this.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(this.attributes['editionCurrentTrack'])))
+                editionTrackIndex = 0;
+            else
+                editionTrackIndex = Number(this.attributes['editionCurrentTrack']);
+
             editionTrackIndex--;
             // Check for last audio file.
             if (editionTrackIndex < 0) {
@@ -274,7 +286,7 @@ var controller = function () {
                 }
             }
             // Set values to attributes.
-            this.attributes['editionCurrentTrack'] = edtitionTrackIndex;
+            this.attributes['editionCurrentTrack'] = editionTrackIndex;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
 
