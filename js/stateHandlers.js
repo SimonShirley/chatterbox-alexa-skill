@@ -211,7 +211,12 @@ var controller = function () {
                 this.response.cardRenderer(cardTitle, cardContent, null);
             }
 
-            this.response.audioPlayerPlay(playBehavior, chatterboxEdition.tracks[this.attributes['editionCurrentTrack']].mp3, token, null, offsetInMilliseconds);
+            try {
+                this.response.audioPlayerPlay(playBehavior, chatterboxEdition.tracks[this.attributes['editionCurrentTrack']].mp3, token, null, offsetInMilliseconds);
+            } catch (ex) {
+                console.log("Error in playback: ", ex);
+            }
+
             this.emit(':responseReady');
         },
         stop: function () {
@@ -219,7 +224,11 @@ var controller = function () {
              *  Issuing AudioPlayer.Stop directive to stop the audio.
              *  Attributes already stored when AudioPlayer.Stopped request received.
              */
-            this.response.audioPlayerStop();
+            try {
+                this.response.audioPlayerStop();
+            } catch (ex) {
+                console.log("Error in stopping playback: ", ex);
+            }
             this.emit(':responseReady');
         },
         playNext: function () {
@@ -246,7 +255,13 @@ var controller = function () {
                     this.handler.state = constants.states.START_MODE;
 
                     var message = strings.next_track_end_of_list;
-                    this.response.speak(message).audioPlayerStop();
+                    this.response.speak(message);
+
+                    try {
+                        this.response.audioPlayerStop();
+                    } catch (ex) {
+                        console.log("Error in stopping playback: ", ex);
+                    }
                     return this.emit(':responseReady');
                 }
             }
@@ -281,7 +296,13 @@ var controller = function () {
                     this.handler.state = constants.states.START_MODE;
 
                     var message = strings.previous_track_end_of_list;
-                    this.response.speak(message).audioPlayerStop();
+                    this.response.speak(message);
+                    
+                    try {
+                        this.response.audioPlayerStop();
+                    } catch (ex) {
+                        console.log("Error in stopping playback: ", ex);
+                    }
                     return this.emit(':responseReady');
                 }
             }
