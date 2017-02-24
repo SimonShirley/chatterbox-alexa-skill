@@ -5,10 +5,10 @@ var appInfo = require("./appInfo");
 module.exports = Object.freeze({
     
     // Skill App ID from the developer portal.
-    appId : appInfo["appId"],
+    appId : appInfo.appId,
     
     //  DynamoDB Table name
-    dynamoDBTableName : 'ChatterboxDynamoTable',
+    dynamoDBTableName : appInfo.dynamoDBTableName,
     
     /*
      *  States:
