@@ -99,14 +99,14 @@ function getToken() {
 
 function getCurrentTrack() {
     // Extracting index from the token received in the request.
-    var tokenValue = this.event.request.token;
+    var tokenValue = getToken();
     var tokenSegments = tokenValue.split("_");
     return Number(tokenSegments[1]);
 }
 
 function getCurrentEdition() {
     // Extracting index from the token received in the request.
-    var tokenValue = this.event.request.token;
+    var tokenValue = getToken();
     var tokenSegments = tokenValue.split("_");
     return Number(tokenSegments[0]);
 }
