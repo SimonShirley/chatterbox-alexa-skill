@@ -1,0 +1,10 @@
+"use strict";
+
+module.exports = Object.freeze({
+    
+    // Skill App ID from the developer portal.
+    appId : "",
+    
+    //  DynamoDB Table name
+    dynamoDBTableName : ""
+});
