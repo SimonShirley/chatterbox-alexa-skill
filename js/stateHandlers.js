@@ -1,10 +1,13 @@
 'use strict';
 
 var Alexa = require('alexa-sdk');
-var audioData = require('./audioAssets');
+var format = require('string-format');
+var mysql = require('mysql');
+var dateformat = require('dateformat');
+
 var constants = require('./constants');
 var strings = require('./strings');
-var format = require('string-format');
+var appInfo = require("./appInfo");
 
 format.extend(String.prototype);
 
@@ -15,9 +18,7 @@ var stateHandlers = {
          */
         'LaunchRequest' : function () {
             // Initialize Attributes
-            this.attributes['editionListIndex'] = 0;
-            this.attributes['editionCurrentTrack'] = 0;
-            this.attributes['currentEdition'] = 0;
+            this.attributes['editionCurrentTrack'] = 1;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['loop'] = false;
             this.attributes['shuffle'] = false;
@@ -32,19 +33,29 @@ var stateHandlers = {
             this.emit(':responseReady');
         },
         'Chatterbox' : function () {
-            if (!this.attributes['editionListIndex']) {
+            var self = this;
+
+            if (!self.attributes['currentEditionId']) {
                 // Initialize Attributes if undefined.
-                this.attributes['editionListIndex'] = 0;
-                this.attributes['editionCurrentTrack'] = 0;
-                this.attributes['currentEdition'] = 0;
-                this.attributes['offsetInMilliseconds'] = 0;
-                this.attributes['loop'] = false;
-                this.attributes['shuffle'] = false;
-                this.attributes['playbackEditionCurrentTrackChanged'] = true;
+                self.attributes['editionCurrentTrack'] = 0;
+                self.attributes['offsetInMilliseconds'] = 0;
+                self.attributes['loop'] = false;
+                self.attributes['shuffle'] = false;
+                self.attributes['playbackEditionCurrentTrackChanged'] = true;
                 //  Change state to START_MODE
-                this.handler.state = constants.states.START_MODE;
+                self.handler.state = constants.states.START_MODE;
+
+                var currentConnection = getMySQLConnection();
+
+                currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
+                    if (error) throw error;
+                    self.attributes["currentEditionId"] = results[0].id;
+
+                    controller.play.call(self);
+                });
+            } else {
+                controller.play.call(self);
             }
-            controller.play.call(this);
         },
         'AMAZON.HelpIntent' : function () {
             var message = strings.start_mode_help;
@@ -84,23 +95,38 @@ var stateHandlers = {
              *      Ask user if he/she wants to resume from last position.
              *      Change state to RESUME_DECISION_MODE
              */
+            var self = this;
             var message;
             var reprompt;
 
-            if (this.attributes['playbackFinished']) {
-                this.handler.state = constants.states.START_MODE;
+            if (self.attributes['playbackFinished']) {
+                self.handler.state = constants.states.START_MODE;
                 message = strings.start_mode_launch_message;
                 reprompt = strings.start_mode_launch_reprompt;
-            } else {
-                this.handler.state = constants.states.RESUME_DECISION_MODE;
-                message = strings.resume_launch_message.format(audioData.chatterbox[this.attributes['editionListIndex']].edition.toString(), audioData.chatterbox[this.attributes['editionListIndex']].recorded.replace(/(-)+/, '').toString());
-                reprompt = strings.resume_launch_reprompt;
-            }
 
-            this.response.speak(message).listen(reprompt);
-            this.emit(':responseReady');
+                self.response.speak(message).listen(reprompt);
+                self.emit(':responseReady');
+
+                return;
+            } else {
+                self.handler.state = constants.states.RESUME_DECISION_MODE;
+
+                var currentConnection = getMySQLConnection();
+
+                currentConnection.query("SELECT edition_number, recorded_date FROM tbl_edition WHERE id = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                    if (error) throw error;
+
+                    message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                    reprompt = strings.resume_launch_reprompt;
+
+                    self.response.speak(message).listen(reprompt);
+                    self.emit(':responseReady');
+                });      
+
+                currentConnection.end();          
+            }
         },
-        'Chatterbox' : function () { controller.play.call(this) },
+        'Chatterbox' : function () { controller.play.call(this); },
         'AMAZON.NextIntent' : function () { controller.playNext.call(this) },
         'AMAZON.PreviousIntent' : function () { controller.playPrevious.call(this) },
         'AMAZON.PauseIntent' : function () { controller.stop.call(this) },
@@ -141,18 +167,38 @@ var stateHandlers = {
          *  All Intent Handlers for state : RESUME_DECISION_MODE
          */
         'LaunchRequest' : function () {
-            var message = strings.resume_launch_message.format(audioData.chatterbox[this.attributes['editionListIndex']].edition.toString(), audioData.chatterbox[this.attributes['editionListIndex']].recorded.replace(/(-)+/, '').toString());
-            var reprompt = strings.resume_launch_reprompt;
-            this.response.speak(message).listen(reprompt);
-            this.emit(':responseReady');
+            var self = this;
+            var currentConnection = getMySQLConnection();
+
+            currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                if (error) throw error;
+
+                var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                var reprompt = strings.resume_launch_reprompt;
+
+                self.response.speak(message).listen(reprompt);
+                self.emit(':responseReady');
+            });      
+
+            currentConnection.end();
         },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () { controller.reset.call(this) },
         'AMAZON.HelpIntent' : function () {
-            var message = strings.resume_help_message.format(audioData.chatterbox[this.attributes['editionListIndex']].tracks[this.attributes['editionTrackOrder']].title);
-            var reprompt = strings.resume_launch_reprompt;
-            this.response.speak(message).listen(reprompt);
-            this.emit(':responseReady');
+            var self = this;
+            var currentConnection = getMySQLConnection();
+
+            currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                if (error) throw error;
+
+                var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                var reprompt = strings.resume_launch_reprompt;
+
+                self.response.speak(message).listen(reprompt);
+                self.emit(':responseReady');
+            });      
+
+            currentConnection.end();
         },
         'AMAZON.StopIntent' : function () {
             var message = strings.exit_message;
@@ -186,39 +232,53 @@ var controller = function () {
              *      Resuming audio when stopped/paused.
              *      Next/Previous commands issued.
              */
-            this.handler.state = constants.states.PLAY_MODE;
+            var self = this;
+            self.handler.state = constants.states.PLAY_MODE;
 
-            if (this.attributes['playbackFinished']) {
+            if (self.attributes['playbackFinished']) {
                 // Reset to top of the playlist when reached end.
-                this.attributes['editionListIndex'] = 0;
-                this.attributes['editionCurrentTrack'] = 0;
-                this.attributes['currentEdition'] = 0;
-                this.attributes['offsetInMilliseconds'] = 0;
-                this.attributes['playbackEditionCurrentTrackChanged'] = true;
-                this.attributes['playbackFinished'] = false;
+                self.attributes['editionCurrentTrack'] = 1;
+                self.attributes['offsetInMilliseconds'] = 0;
+                self.attributes['playbackEditionCurrentTrackChanged'] = true;
+                self.attributes['playbackFinished'] = false;
+
+
+
+                /*
+                self.attributes["currentEditionId"] = null;
+                self.controller.reset();
+                return;
+                */
             }
 
-            var token = "{0}_{1}".format(audioData.chatterbox[this.attributes['editionListIndex']].edition, this.attributes['editionCurrentTrack']);
+            var token = "{0}_{1}".format(self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]);
             var playBehavior = 'REPLACE_ALL';
-            var chatterboxEdition = audioData.chatterbox[this.attributes['editionListIndex']];
-            var offsetInMilliseconds = this.attributes['offsetInMilliseconds'];
+            var offsetInMilliseconds = self.attributes['offsetInMilliseconds'];
+
             // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
-            this.attributes['enqueuedToken'] = null;
+            self.attributes['enqueuedToken'] = null;
 
+            var currentConnection = getMySQLConnection();
 
-            if (canThrowCard.call(this)) {
-                var cardTitle = 'Chatterbox - Edition {0}'.format(chatterboxEdition.edition.toString());
-                var cardContent = chatterboxEdition.tracks[this.attributes['editionCurrentTrack']].title;
-                this.response.cardRenderer(cardTitle, cardContent, null);
-            }
+            currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
+                if (error) throw error;
 
-            try {
-                this.response.audioPlayerPlay(playBehavior, chatterboxEdition.tracks[this.attributes['editionCurrentTrack']].mp3, token, null, offsetInMilliseconds);
-            } catch (ex) {
-                console.log("Error in playback: ", ex);
-            }
+                if (canThrowCard.call(self)) {
+                    var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
+                    var cardContent = results[0].track_title;
+                    self.response.cardRenderer(cardTitle, cardContent, null);
+                }
 
-            this.emit(':responseReady');
+                try {
+                    self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
+                } catch (ex) {
+                    console.log("Error in playback: ", ex);
+                }
+
+                self.emit(':responseReady');
+            });      
+
+            currentConnection.end();
         },
         stop: function () {
             /*
@@ -238,41 +298,51 @@ var controller = function () {
              *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var editionTrackIndex = -1;
+            var self = this;
+            var editionTrackIndex = 0;
+            var currentConnection = getMySQLConnection();
+            var editionTrackCount = 0;
             
-            if (typeof(this.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(this.attributes['editionCurrentTrack'])))
-                editionTrackIndex = -1;
+            if (typeof(self.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(self.attributes['editionCurrentTrack'])))
+                editionTrackIndex = 0;
             else
-                editionTrackIndex = Number(this.attributes['editionCurrentTrack']);
+                editionTrackIndex = Number(self.attributes['editionCurrentTrack']);
 
-            editionTrackIndex++;
+            editionTrackIndex++;            
 
-            // Check for last audio file.
-            if (editionTrackIndex >= audioData.chatterbox[this.attributes['editionListIndex']].tracks.length) {
-                if (this.attributes['loop']) {
-                    editionTrackIndex = 0;
-                } else {
-                    // Reached at the end. Thus reset state to start mode and stop playing.
-                    this.handler.state = constants.states.START_MODE;
+            currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                if (error) throw error;
 
-                    var message = strings.next_track_end_of_list;
-                    this.response.speak(message);
+                // Check for last audio file.
+                if (editionTrackIndex > results[0].track_count) {
+                    if (self.attributes['loop']) {
+                        editionTrackIndex = 1;
+                    } else {
+                        // Reached at the end. Thus reset state to start mode and stop playing.
+                        self.attributes["playbackFinished"] = true;
 
-                    try {
-                        this.response.audioPlayerStop();
-                    } catch (ex) {
-                        console.log("Error in stopping playback: ", ex);
+                        var message = strings.next_track_end_of_list;
+                        self.response.speak(message);
+
+                        try {
+                            self.response.audioPlayerStop();
+                        } catch (ex) {
+                            console.log("Error in stopping playback: ", ex);
+                        }
+
+                        return self.emit(':responseReady');
                     }
-                    return this.emit(':responseReady');
                 }
-            }
 
-            // Set values to attributes.
-            this.attributes['editionCurrentTrack'] = editionTrackIndex;
-            this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['playbackEditionCurrentTrackChanged'] = true;
+                // Set values to attributes.
+                self.attributes['editionCurrentTrack'] = editionTrackIndex;
+                self.attributes['offsetInMilliseconds'] = 0;
+                self.attributes['playbackEditionCurrentTrackChanged'] = true;
 
-            controller.play.call(this);
+                controller.play.call(self);
+            });      
+
+            currentConnection.end();
         },
         playPrevious: function () {
             /*
@@ -280,39 +350,60 @@ var controller = function () {
              *  editionListIndex is computed using token stored when AudioPlayer.PlaybackStopped command is received.
              *  If reached at the end of the playlist, choose behavior based on "loop" flag.
              */
-            var editionTrackIndex = 0;
+            var self = this;
+            var editionTrackIndex = 1;
             
-            if (typeof(this.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(this.attributes['editionCurrentTrack'])))
-                editionTrackIndex = 0;
+            if (typeof(self.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(self.attributes['editionCurrentTrack'])))
+                editionTrackIndex = 1;
             else
-                editionTrackIndex = Number(this.attributes['editionCurrentTrack']);
+                editionTrackIndex = Number(self.attributes['editionCurrentTrack']);
 
             editionTrackIndex--;
+
             // Check for last audio file.
-            if (editionTrackIndex < 0) {
-                if (this.attributes['loop']) {
-                    editionListIndex = audioData.chatterbox[this.attributes['editionListIndex']].tracks.length - 1;
+            if (editionTrackIndex < 1) {
+                if (self.attributes['loop']) {
+                    var currentConnection = getMySQLConnection();
+                    
+                    currentConnection.query("SELECT MAX(`track_number`) FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                        if (error) throw error;
+
+                        editionTrackIndex = results[0].track_number;
+
+                        // Set values to attributes.
+                        self.attributes['editionCurrentTrack'] = editionTrackIndex;
+                        self.attributes['offsetInMilliseconds'] = 0;
+                        self.attributes['playbackEditionCurrentTrackChanged'] = true;
+
+                        controller.play.call(self);
+                        return;
+                    });
+
+                    currentConnection.end();
                 } else {
                     // Reached at the end. Thus reset state to start mode and stop playing.
-                    this.handler.state = constants.states.START_MODE;
+                    self.handler.state = constants.states.START_MODE;
+
+                    self.attributes["offsetInMilliseconds"] = 0;
+                    self.attributes["editionCurrentTrack"] = 1;
 
                     var message = strings.previous_track_end_of_list;
-                    this.response.speak(message);
+                    self.response.speak(message);
                     
                     try {
-                        this.response.audioPlayerStop();
+                        self.response.audioPlayerStop();
                     } catch (ex) {
                         console.log("Error in stopping playback: ", ex);
                     }
-                    return this.emit(':responseReady');
+                    return self.emit(':responseReady');
                 }
             }
             // Set values to attributes.
-            this.attributes['editionCurrentTrack'] = editionTrackIndex;
-            this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['playbackEditionCurrentTrackChanged'] = true;
+            self.attributes['editionCurrentTrack'] = editionTrackIndex;
+            self.attributes['offsetInMilliseconds'] = 0;
+            self.attributes['playbackEditionCurrentTrackChanged'] = true;
 
-            controller.play.call(this);
+            controller.play.call(self);
         },
         loopOn: function () {
             // Turn on loop play.
@@ -343,12 +434,19 @@ var controller = function () {
         },
         reset: function () {
             // Reset to top of the playlist.
-            this.attributes['editionListIndex'] = 0;
-            this.attributes['editionCurrentTrack'] = 0;
-            this.attributes['currentEdition'] = 0;
+            this.attributes['editionCurrentTrack'] = 1;
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
-            controller.play.call(this);
+            this.attributes["playbackFinished"] = true;
+            
+            //  Change state to START_MODE
+            this.handler.state = constants.states.START_MODE;
+
+            var message = strings.start_mode_launch_message;
+            var reprompt = strings.start_mode_launch_reprompt;
+
+            this.response.speak(message).listen(reprompt);
+            this.emit(':responseReady');
         }
     }
 }();
@@ -368,4 +466,18 @@ function canThrowCard() {
     }
 
     return false;
+}
+
+function getMySQLConnection() {
+    var connection = mysql.createConnection({
+        host: appInfo.mysql_data.host,
+        user: appInfo.mysql_data.username,
+        password: appInfo.mysql_data.password,
+        database: appInfo.mysql_data.database_name,
+        ssl: "Amazon RDS"
+    });
+
+    connection.connect();
+
+    return connection;
 }
