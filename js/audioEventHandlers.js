@@ -1,8 +1,10 @@
 'use strict';
 
 var Alexa = require('alexa-sdk');
-var audioData = require('./audioAssets');
+//var audioData = require('./audioAssets');
 var constants = require('./constants');
+var mysql = require('mysql');
+var appInfo = require("./appInfo");
 var format = require('string-format');
 
 format.extend(String.prototype);
@@ -17,7 +19,6 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
          */
         this.attributes['token'] = getToken.call(this);
         this.attributes['editionCurrentTrack'] = getCurrentTrack.call(this);
-        this.attributes['currentEdition'] = getCurrentEdition(this);
         this.attributes['playbackFinished'] = false;
         this.emit(':saveState', true);
     },
@@ -39,7 +40,6 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
          */
         this.attributes['token'] = getToken.call(this);
         this.attributes['editionCurrentTrack'] = getCurrentTrack.call(this);
-        this.attributes['currentEdition'] = getCurrentEdition(this);
         this.attributes['offsetInMilliseconds'] = getOffsetInMilliseconds.call(this);
         this.emit(':saveState', true);
     },
@@ -50,38 +50,55 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
          * Storing details in dynamoDB using attributes.
          * Enqueuing the next audio file.
          */
-        if (this.attributes['enqueuedToken']) {
+        var self = this;
+
+        if (self.attributes['enqueuedToken']) {
             /*
              * Since AudioPlayer.PlaybackNearlyFinished Directive are prone to be delivered multiple times during the
              * same audio being played.
              * If an audio file is already enqueued, exit without enqueuing again.
              */
-            return this.context.succeed(true);
+            return self.context.succeed(true);
         }
         
-        var enqueueIndex = this.attributes['editionCurrentTrack'];
-        enqueueIndex +=1;
-        // Checking if  there are any items to be enqueued.
-        if (enqueueIndex === audioData.chatterbox[this.attributes["editionListIndex"]].tracks.length) {
-            if (this.attributes['loop']) {
-                // Enqueueing the first item since looping is enabled.
-                enqueueIndex = 0;
-            } else {
-                // Nothing to enqueue since reached end of the list and looping is disabled.
-                return this.context.succeed(true);
-            }
-        }
-        // Setting attributes to indicate item is enqueued.
-        this.attributes['enqueuedToken'] = "{0}_{1}".format(audioData.chatterbox[this.attributes['editionListIndex']].edition, enqueueIndex);
+        var enqueueIndex = self.attributes['editionCurrentTrack'];
+        enqueueIndex++;
 
-        var enqueueToken = this.attributes['enqueuedToken'];
-        var playBehavior = 'ENQUEUE';
-        var chatterboxEdition = audioData.chatterbox[this.attributes['editionListIndex']];
-        var expectedPreviousToken = this.attributes['token'];
-        var offsetInMilliseconds = 0;
-        
-        this.response.audioPlayerPlay(playBehavior, chatterboxEdition.tracks[enqueueIndex].mp3, enqueueToken, expectedPreviousToken, offsetInMilliseconds);
-        this.emit(':responseReady');
+        var currentConnection = getMySQLConnection();
+
+        currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentTrackId"]], function(error, results, fields) {
+            if (error) throw error;
+
+            // Checking if  there are any items to be enqueued.
+            if (enqueueIndex > results[0].track_count) {
+                if (self.attributes['loop']) {
+                    // Enqueueing the first item since looping is enabled.
+                    enqueueIndex = 1;
+                } else {
+                    // Nothing to enqueue since reached end of the list and looping is disabled.
+                    return self.context.succeed(true);
+                }
+            }
+
+            // Setting attributes to indicate item is enqueued.
+            self.attributes['enqueuedToken'] = "{0}_{1}".format(self.attributes["currendEditionId"], enqueueIndex);
+
+            var enqueueToken = self.attributes['enqueuedToken'];
+            var playBehavior = 'ENQUEUE';
+            var expectedPreviousToken = self.attributes['token'];
+            var offsetInMilliseconds = 0;
+
+            currentConnection.query("SELECT `track_url` FROM `tbl_edition_tracks` WHERE `edition_id` = ? AND `track_number` = ?", [self.attributes["currentEditionId"], enqueueIndex], function(error, results, fields) {
+                if (error) throw error;
+                
+                self.response.audioPlayerPlay(playBehavior, results[0].track_url, enqueueToken, expectedPreviousToken, offsetInMilliseconds);
+                self.emit(':responseReady');
+            });       
+
+            currentConnection.end();     
+        });
+
+        //currentConnection.end();
     },
     'PlaybackFailed' : function () {
         //  AudioPlayer.PlaybackNearlyFinished Directive received. Logging the error.
@@ -99,19 +116,26 @@ function getToken() {
 
 function getCurrentTrack() {
     // Extracting index from the token received in the request.
-    var tokenValue = getToken();
+    var tokenValue = this.event.request.token;
     var tokenSegments = tokenValue.split("_");
     return Number(tokenSegments[1]);
-}
-
-function getCurrentEdition() {
-    // Extracting index from the token received in the request.
-    var tokenValue = getToken();
-    var tokenSegments = tokenValue.split("_");
-    return Number(tokenSegments[0]);
 }
 
 function getOffsetInMilliseconds() {
     // Extracting offsetInMilliseconds received in the request.
     return this.event.request.offsetInMilliseconds;
+}
+
+function getMySQLConnection() {
+    var connection = mysql.createConnection({
+        host: appInfo.mysql_data.host,
+        user: appInfo.mysql_data.username,
+        password: appInfo.mysql_data.password,
+        database: appInfo.mysql_data.database_name,
+        ssl: "Amazon RDS"
+    });
+
+    connection.connect();
+
+    return connection;
 }
