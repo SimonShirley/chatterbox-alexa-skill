@@ -37,7 +37,7 @@ var stateHandlers = {
 
             if (!self.attributes['currentEditionId']) {
                 // Initialize Attributes if undefined.
-                self.attributes['editionCurrentTrack'] = 0;
+                self.attributes['editionCurrentTrack'] = 1;
                 self.attributes['offsetInMilliseconds'] = 0;
                 self.attributes['loop'] = false;
                 self.attributes['shuffle'] = false;
@@ -113,7 +113,7 @@ var stateHandlers = {
 
                 var currentConnection = getMySQLConnection();
 
-                currentConnection.query("SELECT edition_number, recorded_date FROM tbl_edition WHERE id = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                     if (error) throw error;
 
                     message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
@@ -182,8 +182,22 @@ var stateHandlers = {
 
             currentConnection.end();
         },
+        'Chatterbox' : function() {
+            this.handler.state = constants.states.START_MODE;
+            this.attributes["playbackFinished"] = false;
+            this.emitWithState('Chatterbox');
+        },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
-        'AMAZON.NoIntent' : function () { controller.reset.call(this) },
+        'AMAZON.NoIntent' : function () {
+            this.handler.state = constants.states.START_MODE;
+            controller.reset.call(this);
+
+            var message = strings.start_mode_launch_message;
+            var reprompt = strings.start_mode_launch_reprompt;
+
+            this.response.speak(message).listen(reprompt);
+            this.emit(":responseReady");
+        },
         'AMAZON.HelpIntent' : function () {
             var self = this;
             var currentConnection = getMySQLConnection();
@@ -237,48 +251,44 @@ var controller = function () {
 
             if (self.attributes['playbackFinished']) {
                 // Reset to top of the playlist when reached end.
-                self.attributes['editionCurrentTrack'] = 1;
-                self.attributes['offsetInMilliseconds'] = 0;
-                self.attributes['playbackEditionCurrentTrackChanged'] = true;
+                controller.reset.call(self);
                 self.attributes['playbackFinished'] = false;
 
-
-
-                /*
-                self.attributes["currentEditionId"] = null;
-                self.controller.reset();
-                return;
-                */
-            }
-
-            var token = "{0}_{1}".format(self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]);
-            var playBehavior = 'REPLACE_ALL';
-            var offsetInMilliseconds = self.attributes['offsetInMilliseconds'];
-
-            // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
-            self.attributes['enqueuedToken'] = null;
-
-            var currentConnection = getMySQLConnection();
-
-            currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
-                if (error) throw error;
-
-                if (canThrowCard.call(self)) {
-                    var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
-                    var cardContent = results[0].track_title;
-                    self.response.cardRenderer(cardTitle, cardContent, null);
-                }
-
-                try {
-                    self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
-                } catch (ex) {
-                    console.log("Error in playback: ", ex);
-                }
-
+                self.handler.state = constants.states.START_MODE;
+                self.response.speak(strings.start_mode_launch_message).listen(strings.start_mode_launch_reprompt);
                 self.emit(':responseReady');
-            });      
 
-            currentConnection.end();
+                return;
+            } else {
+                var token = "{0}_{1}".format(self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]);
+                var playBehavior = 'REPLACE_ALL';
+                var offsetInMilliseconds = self.attributes['offsetInMilliseconds'];
+
+                // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
+                self.attributes['enqueuedToken'] = null;
+
+                var currentConnection = getMySQLConnection();
+
+                currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
+                    if (error) throw error;
+
+                    if (canThrowCard.call(self)) {
+                        var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
+                        var cardContent = results[0].track_title;
+                        self.response.cardRenderer(cardTitle, cardContent, null);
+                    }
+
+                    try {
+                        self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
+                    } catch (ex) {
+                        console.log("Error in playback: ", ex);
+                    }
+
+                    self.emit(':responseReady');
+                });      
+
+                currentConnection.end();
+            }
         },
         stop: function () {
             /*
@@ -438,15 +448,7 @@ var controller = function () {
             this.attributes['offsetInMilliseconds'] = 0;
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
             this.attributes["playbackFinished"] = true;
-            
-            //  Change state to START_MODE
-            this.handler.state = constants.states.START_MODE;
-
-            var message = strings.start_mode_launch_message;
-            var reprompt = strings.start_mode_launch_reprompt;
-
-            this.response.speak(message).listen(reprompt);
-            this.emit(':responseReady');
+            this.attributes["currentEditionId"] = null;
         }
     }
 }();
