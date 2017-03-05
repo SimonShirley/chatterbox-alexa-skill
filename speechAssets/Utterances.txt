@@ -1,23 +1,14 @@
 Chatterbox begin audio
 Chatterbox begin playing
-Chatterbox begin podcast
 Chatterbox begin the audio
-Chatterbox begin the podcast
 Chatterbox play the audio
 Chatterbox start the audio
 Chatterbox start playing
 Chatterbox to begin audio
-Chatterbox to begin podcast
 Chatterbox to begin the audio
-Chatterbox to begin the podcast
 Chatterbox to begin playing the audio
-Chatterbox to begin playing the podcast
 Chatterbox to play
 Chatterbox to play the audio
-Chatterbox to play the podcast
 Chatterbox to start audio
-Chatterbox to start podcast
 Chatterbox to start the audio
-Chatterbox to start the podcast
 Chatterbox to start playing the audio
-Chatterbox to start playing the podcast
