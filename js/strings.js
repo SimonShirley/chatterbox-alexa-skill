@@ -14,7 +14,8 @@ var strings = {
     'exit_message' : 'Goodbye.',
     'next_track_end_of_list' : 'You have reached at the end of this edition.',
     'previous_track_end_of_list' : 'You have reached at the start of the playlist.',
-    'no_shuffle' : 'I\'m sorry. Chatterbox tracks cannot be shuffled.'
+    'no_shuffle' : 'I\'m sorry. Chatterbox tracks cannot be shuffled.',
+    'edition_unavailable' : 'I\'m sorry, edition number {0} is currently unavailable'
 }
 
 module.exports = strings;

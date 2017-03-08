@@ -57,6 +57,47 @@ var stateHandlers = {
                 controller.play.call(self);
             }
         },
+        'ChatterboxLatest' : function() {
+            var self = this;
+
+            //  Change state to PLAY_MODE
+            self.handler.state = constants.states.PLAY_MODE;
+
+            var currentConnection = getMySQLConnection();
+
+            currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
+                if (error) throw error;
+                
+                controller.reset.call(self);
+                self.attributes["currentEditionId"] = results[0].id;
+                self.attributes['playbackFinished'] = false;
+
+                controller.play.call(self);
+            });
+        },
+        'ChatterboxEditionNumber' : function() {
+            var self = this;
+
+            var currentConnection = getMySQLConnection();
+
+            currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `edition_number` = ?", [ this.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
+                if (error) throw error;
+
+                if (results.length > 0) {
+                    //  Change state to PLAY_MODE
+                    self.handler.state = constants.states.PLAY_MODE;
+                    
+                    controller.reset.call(self);
+                    self.attributes["currentEditionId"] = results[0].id;
+                    self.attributes['playbackFinished'] = false;
+
+                    controller.play.call(self);
+                } else {
+                    self.response.speak(strings.edition_unavailable.format(this.event.request.intent.slots.edition_number.value));
+                    this.emit(":responseReady");
+                }
+            });
+        },
         'AMAZON.HelpIntent' : function () {
             var message = strings.start_mode_help;
             this.response.speak(message).listen(message);
@@ -127,6 +168,14 @@ var stateHandlers = {
             }
         },
         'Chatterbox' : function () { controller.play.call(this); },
+        'ChatterboxLatest' : function () {
+            this.handler.state = constants.states.START_MODE;
+            this.emitWithState('ChatterboxLatest');
+        },
+        'ChatterboxEditionNumber' : function () {
+            this.handler.state = constants.states.START_MODE;
+            this.emitWithState('ChatterboxEditionNumber');
+        },
         'AMAZON.NextIntent' : function () { controller.playNext.call(this) },
         'AMAZON.PreviousIntent' : function () { controller.playPrevious.call(this) },
         'AMAZON.PauseIntent' : function () { controller.stop.call(this) },
@@ -186,6 +235,14 @@ var stateHandlers = {
             this.handler.state = constants.states.START_MODE;
             this.attributes["playbackFinished"] = false;
             this.emitWithState('Chatterbox');
+        },
+        'ChatterboxLatest' : function () {
+            this.handler.state = constants.states.START_MODE;
+            this.emitWithState('ChatterboxLatest');
+        },
+        'ChatterboxEditionNumber' : function () {
+            this.handler.state = constants.states.START_MODE;
+            this.emitWithState('ChatterboxEditionNumber');
         },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () {

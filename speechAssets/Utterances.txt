@@ -7,12 +7,11 @@ Chatterbox start playing
 Chatterbox to begin audio
 Chatterbox to begin the audio
 Chatterbox to begin playing the audio
-Chatterbox to play
 Chatterbox to play the audio
 Chatterbox to start audio
 Chatterbox to start the audio
 Chatterbox to start playing the audio
-ChatterboxDate to play the latest edition
-ChatterboxDate to play { dated } edition
-ChatterboxNumber to play edition { edition_number }
-ChatterboxNumber to play edition number { edition_number }
+ChatterboxLatest to play the latest edition
+ChatterboxDate to play {dated} edition
+ChatterboxEditionNumber to play edition {edition_number}
+ChatterboxEditionNumber to play edition number {edition_number}
