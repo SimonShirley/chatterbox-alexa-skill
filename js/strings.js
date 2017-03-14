@@ -1,9 +1,9 @@
 'use strict';
 
 var strings = {
-    'start_mode_launch_message' : 'Welcome to Chatterbox, the Talking Newspaper. You can say, play the audio, to begin the latest edition.',
+    'start_mode_launch_message' : 'Welcome to Chatterbox, the Talking Newspaper. You can say, play the latest edition, play edition number 1950 or play last week\'s edition.',
     'start_mode_launch_reprompt' : 'You can say, play the audio, to begin.',
-    'start_mode_help' : 'Welcome to Chatterbox, the Talking Newspaper. You can say, play the audio, to begin the latest edition.',
+    'start_mode_help' : 'Welcome to Chatterbox, the Talking Newspaper. You can say, play the latest edition, play edition number 1950 or play last week\'s edition.',
     'play_mode_help' : 'You are listening to Chatterbox, the Talking Newspaper. You can say, Next or Previous to navigate through the edition. At any time, you can say Pause to pause the audio and Resume to resume.',
     'play_mode_unhandled_request' : 'Sorry, I could not understand. You can say, Next or Previous to navigate through the edition.',
     'resume_launch_message' : 'You were listening to edition number <say-as interpret-as="cardinal">{0}</say-as>, recorded on <say-as interpret-as="date" format="dmy">{1}</say-as>. Would you like to resume?',
@@ -15,7 +15,9 @@ var strings = {
     'next_track_end_of_list' : 'You have reached at the end of this edition.',
     'previous_track_end_of_list' : 'You have reached at the start of the playlist.',
     'no_shuffle' : 'I\'m sorry. Chatterbox tracks cannot be shuffled.',
-    'edition_unavailable' : 'I\'m sorry, edition number {0} is currently unavailable'
+    'edition_unavailable' : 'I\'m sorry, edition number {0} is currently unavailable',
+    'edition_no_number_unavailable' : 'I\'m sorry. This edition is currently unavailable',
+    'playing_edition_date' : 'Playing edition number <say-as interpret-as="cardinal">{0}</say-as>, recorded on <say-as interpret-as="date" format="dmy">{1}</say-as>.'
 }
 
 module.exports = strings;

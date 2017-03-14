@@ -65,38 +65,87 @@ var stateHandlers = {
 
             var currentConnection = getMySQLConnection();
 
-            currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
+            currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
                 if (error) throw error;
                 
                 controller.reset.call(self);
                 self.attributes["currentEditionId"] = results[0].id;
                 self.attributes['playbackFinished'] = false;
 
+                var recorded_date = new Date(results[0].recorded_date);
+                var recorded_year = recorded_date.getFullYear();
+                var recorded_month = recorded_date.getMonth();
+                var recorded_day = recorded_date.getDate();
+                
+                if (recorded_month.length < 2)
+                    recorded_month = "0".concat(recorded_date.getMonth());
+
+                if (recorded_day.length < 2)
+                    recorded_day = "0".concat(recorded_date.getDate());
+
+                self.response.speak(strings.playing_edition_date.format(results[0].edition_number, [recorded_year, recorded_month, recorded_day].join('-')));
                 controller.play.call(self);
             });
         },
-        'ChatterboxEditionNumber' : function() {
+        'ChatterboxSpecificEdition' : function() {
             var self = this;
-
+            var inputValue = self.event.request.intent.slots.edition_number.value;
             var currentConnection = getMySQLConnection();
 
-            currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `edition_number` = ?", [ this.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
-                if (error) throw error;
+            if (!isNaN(inputValue)) { // check to see if the input is a number
+                inputValue = parseInt(inputValue);
 
-                if (results.length > 0) {
-                    //  Change state to PLAY_MODE
-                    self.handler.state = constants.states.PLAY_MODE;
-                    
-                    controller.reset.call(self);
-                    self.attributes["currentEditionId"] = results[0].id;
-                    self.attributes['playbackFinished'] = false;
+                currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `edition_number` = ?", [ self.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
+                    if (error) throw error;
 
-                    controller.play.call(self);
-                } else {
-                    self.response.speak(strings.edition_unavailable.format(this.event.request.intent.slots.edition_number.value));
-                    this.emit(":responseReady");
+                    if (results.length > 0) {
+                        //  Change state to PLAY_MODE
+                        self.handler.state = constants.states.PLAY_MODE;
+                        
+                        controller.reset.call(self);
+                        self.attributes["currentEditionId"] = results[0].id;
+                        self.attributes['playbackFinished'] = false;
+
+                        self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(results[0].recorded_date)));
+                        controller.play.call(self);
+                    } else {
+                        self.response.speak(strings.edition_unavailable.format(self.event.request.intent.slots.edition_number.value));
+                        self.emit(":responseReady");
+                    }
+                });
+            } else { // if the value is some sort of date
+                var editionDate = "";
+                var dateMatches = inputValue.match(/(\d{4})-W([01-53])/);
+
+                if (inputValue.match(/^[0-9]{4}-(((0[13578]|(10|12))-(0[1-9]|[1-2][0-9]|3[0-1]))|(02-(0[1-9]|[1-2][0-9]))|((0[469]|11)-(0[1-9]|[1-2][0-9]|30)))$/).length > 0) {
+                    editionDate = inputValue;
+                } else if (dateMatches.length > 0) {
+                    try {
+                        editionDate = getThursdayOfISOWeek(dateMatches[1], dateMatches[0]);
+                    } catch (ex) { }
                 }
-            });
+
+                currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
+                    if (error) throw error;
+
+                    if (results.length > 0) {
+                        //  Change state to PLAY_MODE
+                        self.handler.state = constants.states.PLAY_MODE;
+                        
+                        controller.reset.call(self);
+                        self.attributes["currentEditionId"] = results[0].id;
+                        self.attributes['playbackFinished'] = false;
+
+                        this.response.speak(strings.playing_edition_date.format(results[0].edition_number, editionDate.split('-').join('')));
+                        controller.play.call(self);
+                    } else {
+                        self.response.speak(strings.edition_no_number_unavailable);
+                        this.emit(":responseReady");
+                    }
+                });
+            }
+
+            currentConnection.end();
         },
         'AMAZON.HelpIntent' : function () {
             var message = strings.start_mode_help;
@@ -172,9 +221,9 @@ var stateHandlers = {
             this.handler.state = constants.states.START_MODE;
             this.emitWithState('ChatterboxLatest');
         },
-        'ChatterboxEditionNumber' : function () {
+        'ChatterboxSpecificEdition' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxEditionNumber');
+            this.emitWithState('ChatterboxSpecificEdition');
         },
         'AMAZON.NextIntent' : function () { controller.playNext.call(this) },
         'AMAZON.PreviousIntent' : function () { controller.playPrevious.call(this) },
@@ -222,6 +271,14 @@ var stateHandlers = {
             currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                 if (error) throw error;
 
+                if (results.length < 1) {
+                    controller.reset.call(self);
+
+                    self.handler.state = constants.states.START_MODE;
+                    self.emitWithState("Chatterbox");
+                    return;
+                }
+
                 var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
                 var reprompt = strings.resume_launch_reprompt;
 
@@ -240,9 +297,9 @@ var stateHandlers = {
             this.handler.state = constants.states.START_MODE;
             this.emitWithState('ChatterboxLatest');
         },
-        'ChatterboxEditionNumber' : function () {
+        'ChatterboxSpecificEdition' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxEditionNumber');
+            this.emitWithState('ChatterboxSpecificEdition');
         },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () {
@@ -539,4 +596,46 @@ function getMySQLConnection() {
     connection.connect();
 
     return connection;
+}
+
+function getThursdayOfISOWeek(w, y) {
+    var simple = new Date(y, 0, 1 + (w - 1) * 7);
+    var dow = simple.getDay();
+    var ISOweekStart = simple;
+    if (dow <= 4)
+        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+    else
+        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+    ISOweekStart = ISOweekStart.setDate(result.getDate() + 3); // add 3 days as the ISO week begins on a Monday
+
+    var month = '' + (ISOweekStart.getMonth() + 1),
+        day = '' + ISOweekStart.getDate(),
+        year = ISOweekStart.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+
+function getDateAsNumber(stringDate) {
+    var recorded_date = new Date(stringDate);
+    var recorded_year = recorded_date.getFullYear();
+    var recorded_month = recorded_date.getMonth() + 1;
+    var recorded_day = recorded_date.getDate();
+    
+    if (recorded_month.toString().length < 2)
+        recorded_month = "0".concat(recorded_month);
+
+    if (recorded_day.toString().length < 2)
+        recorded_day = "0".concat(recorded_day);
+
+    console.log("Year: ", recorded_year);
+    console.log("Month: ", recorded_month);
+    console.log("Day: ", recorded_day);
+    console.log("DateInput: ".concat(stringDate));
+    console.log("Processed Date: " + [recorded_year, recorded_month, recorded_day].join(''));
+
+    return [recorded_year, recorded_month, recorded_day].join('');
 }

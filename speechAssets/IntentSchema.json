@@ -1,7 +1,28 @@
 {
   "intents": [
     {
-      "intent": "PlayAudio"
+      "intent": "Chatterbox"
+    },
+    {
+      "intent": "ChatterboxLatest"
+    },
+    {
+      "intent": "ChatterboxDate",
+      "slots": [
+        {
+          "name": "dated",
+          "type": "AMAZON.DATE"
+        }
+      ]
+    },
+    {
+      "intent": "ChatterboxSpecificEdition",
+      "slots": [
+        {
+          "name": "edition_number",
+          "type": "AMAZON.NUMBER"
+        }
+      ]
     },
     {
       "intent": "AMAZON.PauseIntent"
