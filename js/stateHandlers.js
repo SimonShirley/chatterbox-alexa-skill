@@ -72,18 +72,7 @@ var stateHandlers = {
                 self.attributes["currentEditionId"] = results[0].id;
                 self.attributes['playbackFinished'] = false;
 
-                var recorded_date = new Date(results[0].recorded_date);
-                var recorded_year = recorded_date.getFullYear();
-                var recorded_month = recorded_date.getMonth();
-                var recorded_day = recorded_date.getDate();
-                
-                if (recorded_month.length < 2)
-                    recorded_month = "0".concat(recorded_date.getMonth());
-
-                if (recorded_day.length < 2)
-                    recorded_day = "0".concat(recorded_date.getDate());
-
-                self.response.speak(strings.playing_edition_date.format(results[0].edition_number, [recorded_year, recorded_month, recorded_day].join('-')));
+                self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(recorded_date)));
                 controller.play.call(self);
             });
         },
