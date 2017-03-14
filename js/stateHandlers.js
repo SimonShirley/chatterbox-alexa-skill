@@ -631,11 +631,5 @@ function getDateAsNumber(stringDate) {
     if (recorded_day.toString().length < 2)
         recorded_day = "0".concat(recorded_day);
 
-    console.log("Year: ", recorded_year);
-    console.log("Month: ", recorded_month);
-    console.log("Day: ", recorded_day);
-    console.log("DateInput: ".concat(stringDate));
-    console.log("Processed Date: " + [recorded_year, recorded_month, recorded_day].join(''));
-
     return [recorded_year, recorded_month, recorded_day].join('');
 }
