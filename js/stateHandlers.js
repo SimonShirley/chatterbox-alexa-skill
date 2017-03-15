@@ -109,9 +109,10 @@ var stateHandlers = {
                 });
             } else { // if the value is some sort of date
                 var editionDate = "";
-                var dateMatches = inputValue.match(/(\d{4})-W([01-53])/);
+                var dateMatches = inputValue.match(/(\d{4})-W([01-53])/) || [];
+                var datePatternMatch = inputValue.match(/^[0-9]{4}-(((0[13578]|(10|12))-(0[1-9]|[1-2][0-9]|3[0-1]))|(02-(0[1-9]|[1-2][0-9]))|((0[469]|11)-(0[1-9]|[1-2][0-9]|30)))$/) || [];
 
-                if (inputValue.match(/^[0-9]{4}-(((0[13578]|(10|12))-(0[1-9]|[1-2][0-9]|3[0-1]))|(02-(0[1-9]|[1-2][0-9]))|((0[469]|11)-(0[1-9]|[1-2][0-9]|30)))$/).length > 0) {
+                if (datePatternMatch.length > 0) {
                     editionDate = inputValue;
                 } else if (dateMatches.length > 0) {
                     try {
@@ -119,24 +120,29 @@ var stateHandlers = {
                     } catch (ex) { }
                 }
 
-                currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
-                    if (error) throw error;
+                if (editionDate.length > 0) {
+                    currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
+                        if (error) throw error;
 
-                    if (results.length > 0) {
-                        //  Change state to PLAY_MODE
-                        self.handler.state = constants.states.PLAY_MODE;
-                        
-                        controller.reset.call(self);
-                        self.attributes["currentEditionId"] = results[0].id;
-                        self.attributes['playbackFinished'] = false;
+                        if (results.length > 0) {
+                            //  Change state to PLAY_MODE
+                            self.handler.state = constants.states.PLAY_MODE;
+                            
+                            controller.reset.call(self);
+                            self.attributes["currentEditionId"] = results[0].id;
+                            self.attributes['playbackFinished'] = false;
 
-                        this.response.speak(strings.playing_edition_date.format(results[0].edition_number, editionDate.split('-').join('')));
-                        controller.play.call(self);
-                    } else {
-                        self.response.speak(strings.edition_no_number_unavailable);
-                        this.emit(":responseReady");
-                    }
-                });
+                            self.response.speak(strings.playing_edition_date.format(results[0].edition_number, editionDate.split('-').join('')));
+                            controller.play.call(self);
+                        } else {
+                            self.response.speak(strings.edition_no_number_unavailable);
+                            self.emit(":responseReady");
+                        }
+                    });
+                } else {
+                    self.response.speak(strings.edition_no_number_unavailable);
+                    self.emit(":responseReady");
+                }
             }
 
             currentConnection.end();
