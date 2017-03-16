@@ -77,7 +77,7 @@ var stateHandlers = {
                     controller.play.call(self);
                 } else {
                     self.response.speak(strings.edition_no_number_unavailable);
-                    self.response.emit(":responseReady");
+                    self.emit(":responseReady");
                 }
             });
         },
