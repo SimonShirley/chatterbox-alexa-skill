@@ -68,12 +68,12 @@ var stateHandlers = {
             currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
                 if (error) throw error;
                 
-                if (results.length < 1) {
+                if (results.length > 0) {
                     controller.reset.call(self);
                     self.attributes["currentEditionId"] = results[0].id;
                     self.attributes['playbackFinished'] = false;
 
-                    self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(recorded_date)));
+                    self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(results[0].recorded_date)));
                     controller.play.call(self);
                 } else {
                     self.response.speak(strings.edition_no_number_unavailable);
