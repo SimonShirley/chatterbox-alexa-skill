@@ -9,6 +9,15 @@ var format = require('string-format');
 
 format.extend(String.prototype);
 
+// create MySQL connection pool
+var pool = mysql.createPool({
+    host: appInfo.mysql_data.host,
+    user: appInfo.mysql_data.username,
+    password: appInfo.mysql_data.password,
+    database: appInfo.mysql_data.database_name,
+    ssl: "Amazon RDS"
+});
+
 // Binding audio handlers to PLAY_MODE State since they are expected only in this mode.
 var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
     'PlaybackStarted' : function () {
@@ -64,41 +73,39 @@ var audioEventHandlers = Alexa.CreateStateHandler(constants.states.PLAY_MODE, {
         var enqueueIndex = self.attributes['editionCurrentTrack'];
         enqueueIndex++;
 
-        var currentConnection = getMySQLConnection();
-
-        currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentTrackId"]], function(error, results, fields) {
-            if (error) throw error;
-
-            // Checking if  there are any items to be enqueued.
-            if (enqueueIndex > results[0].track_count) {
-                if (self.attributes['loop']) {
-                    // Enqueueing the first item since looping is enabled.
-                    enqueueIndex = 1;
-                } else {
-                    // Nothing to enqueue since reached end of the list and looping is disabled.
-                    return self.context.succeed(true);
-                }
-            }
-
-            // Setting attributes to indicate item is enqueued.
-            self.attributes['enqueuedToken'] = "{0}_{1}".format(self.attributes["currendEditionId"], enqueueIndex);
-
-            var enqueueToken = self.attributes['enqueuedToken'];
-            var playBehavior = 'ENQUEUE';
-            var expectedPreviousToken = self.attributes['token'];
-            var offsetInMilliseconds = 0;
-
-            currentConnection.query("SELECT `track_url` FROM `tbl_edition_tracks` WHERE `edition_id` = ? AND `track_number` = ?", [self.attributes["currentEditionId"], enqueueIndex], function(error, results, fields) {
+        pool.getConnection(function(err, currentConnection) {
+            currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentTrackId"]], function(error, results, fields) {
                 if (error) throw error;
-                
-                self.response.audioPlayerPlay(playBehavior, results[0].track_url, enqueueToken, expectedPreviousToken, offsetInMilliseconds);
-                self.emit(':responseReady');
-            });       
 
-            currentConnection.end();     
+                // Checking if  there are any items to be enqueued.
+                if (enqueueIndex > results[0].track_count) {
+                    if (self.attributes['loop']) {
+                        // Enqueueing the first item since looping is enabled.
+                        enqueueIndex = 1;
+                    } else {
+                        // Nothing to enqueue since reached end of the list and looping is disabled.
+                        return self.context.succeed(true);
+                    }
+                }
+
+                // Setting attributes to indicate item is enqueued.
+                self.attributes['enqueuedToken'] = "{0}_{1}".format(self.attributes["currendEditionId"], enqueueIndex);
+
+                var enqueueToken = self.attributes['enqueuedToken'];
+                var playBehavior = 'ENQUEUE';
+                var expectedPreviousToken = self.attributes['token'];
+                var offsetInMilliseconds = 0;
+
+                currentConnection.query("SELECT `track_url` FROM `tbl_edition_tracks` WHERE `edition_id` = ? AND `track_number` = ?", [self.attributes["currentEditionId"], enqueueIndex], function(error, results, fields) {
+                    currentConnection.release();
+
+                    if (error) throw error;                    
+                    
+                    self.response.audioPlayerPlay(playBehavior, results[0].track_url, enqueueToken, expectedPreviousToken, offsetInMilliseconds);
+                    self.emit(':responseReady');
+                });    
+            });
         });
-
-        //currentConnection.end();
     },
     'PlaybackFailed' : function () {
         //  AudioPlayer.PlaybackNearlyFinished Directive received. Logging the error.
@@ -124,18 +131,4 @@ function getCurrentTrack() {
 function getOffsetInMilliseconds() {
     // Extracting offsetInMilliseconds received in the request.
     return this.event.request.offsetInMilliseconds;
-}
-
-function getMySQLConnection() {
-    var connection = mysql.createConnection({
-        host: appInfo.mysql_data.host,
-        user: appInfo.mysql_data.username,
-        password: appInfo.mysql_data.password,
-        database: appInfo.mysql_data.database_name,
-        ssl: "Amazon RDS"
-    });
-
-    connection.connect();
-
-    return connection;
 }

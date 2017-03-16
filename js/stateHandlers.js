@@ -11,6 +11,15 @@ var appInfo = require("./appInfo");
 
 format.extend(String.prototype);
 
+// create MySQL connection pool
+var pool = mysql.createPool({
+    host: appInfo.mysql_data.host,
+    user: appInfo.mysql_data.username,
+    password: appInfo.mysql_data.password,
+    database: appInfo.mysql_data.database_name,
+    ssl: "Amazon RDS"
+});
+
 var stateHandlers = {
     startModeIntentHandlers : Alexa.CreateStateHandler(constants.states.START_MODE, {
         /*
@@ -45,13 +54,16 @@ var stateHandlers = {
                 //  Change state to START_MODE
                 self.handler.state = constants.states.START_MODE;
 
-                var currentConnection = getMySQLConnection();
+                pool.getConnection(function(err, currentConnection) {
+                    currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
+                        currentConnection.release();
 
-                currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
-                    if (error) throw error;
-                    self.attributes["currentEditionId"] = results[0].id;
+                        if (error) throw error;
+                        
+                        self.attributes["currentEditionId"] = results[0].id;
 
-                    controller.play.call(self);
+                        controller.play.call(self);
+                    });
                 });
             } else {
                 controller.play.call(self);
@@ -63,39 +75,13 @@ var stateHandlers = {
             //  Change state to PLAY_MODE
             self.handler.state = constants.states.PLAY_MODE;
 
-            var currentConnection = getMySQLConnection();
+            pool.getConnection(function(err, currentConnection) {
+                currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
+                    currentConnection.release();
 
-            currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
-                if (error) throw error;
-                
-                if (results.length > 0) {
-                    controller.reset.call(self);
-                    self.attributes["currentEditionId"] = results[0].id;
-                    self.attributes['playbackFinished'] = false;
-
-                    self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(results[0].recorded_date)));
-                    controller.play.call(self);
-                } else {
-                    self.response.speak(strings.edition_no_number_unavailable);
-                    self.emit(":responseReady");
-                }
-            });
-        },
-        'ChatterboxSpecificEdition' : function() {
-            var self = this;
-            var inputValue = self.event.request.intent.slots.edition_number.value;
-            var currentConnection = getMySQLConnection();
-
-            if (!isNaN(inputValue)) { // check to see if the input is a number
-                inputValue = parseInt(inputValue);
-
-                currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `edition_number` = ?", [ self.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
                     if (error) throw error;
-
+                    
                     if (results.length > 0) {
-                        //  Change state to PLAY_MODE
-                        self.handler.state = constants.states.PLAY_MODE;
-                        
                         controller.reset.call(self);
                         self.attributes["currentEditionId"] = results[0].id;
                         self.attributes['playbackFinished'] = false;
@@ -103,9 +89,40 @@ var stateHandlers = {
                         self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(results[0].recorded_date)));
                         controller.play.call(self);
                     } else {
-                        self.response.speak(strings.edition_unavailable.format(self.event.request.intent.slots.edition_number.value));
+                        self.response.speak(strings.edition_no_number_unavailable);
                         self.emit(":responseReady");
                     }
+                });
+            });
+        },
+        'ChatterboxSpecificEdition' : function() {
+            var self = this;
+            var inputValue = self.event.request.intent.slots.edition_number.value;
+
+            if (!isNaN(inputValue)) { // check to see if the input is a number
+                inputValue = parseInt(inputValue);
+
+                pool.getConnection(function(err, currentConnection) {
+                    currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `edition_number` = ?", [ self.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
+                        currentConnection.release();
+
+                        if (error) throw error;
+
+                        if (results.length > 0) {
+                            //  Change state to PLAY_MODE
+                            self.handler.state = constants.states.PLAY_MODE;
+                            
+                            controller.reset.call(self);
+                            self.attributes["currentEditionId"] = results[0].id;
+                            self.attributes['playbackFinished'] = false;
+
+                            self.response.speak(strings.playing_edition_date.format(results[0].edition_number, getDateAsNumber(results[0].recorded_date)));
+                            controller.play.call(self);
+                        } else {
+                            self.response.speak(strings.edition_unavailable.format(self.event.request.intent.slots.edition_number.value));
+                            self.emit(":responseReady");
+                        }
+                    });
                 });
             } else { // if the value is some sort of date
                 var editionDate = "";
@@ -121,23 +138,25 @@ var stateHandlers = {
                 }
 
                 if (editionDate.length > 0) {
-                    currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
-                        if (error) throw error;
+                    pool.getConnection(function(err, currentConnection) {
+                        currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
+                            if (error) throw error;
 
-                        if (results.length > 0) {
-                            //  Change state to PLAY_MODE
-                            self.handler.state = constants.states.PLAY_MODE;
-                            
-                            controller.reset.call(self);
-                            self.attributes["currentEditionId"] = results[0].id;
-                            self.attributes['playbackFinished'] = false;
+                            if (results.length > 0) {
+                                //  Change state to PLAY_MODE
+                                self.handler.state = constants.states.PLAY_MODE;
+                                
+                                controller.reset.call(self);
+                                self.attributes["currentEditionId"] = results[0].id;
+                                self.attributes['playbackFinished'] = false;
 
-                            self.response.speak(strings.playing_edition_date.format(results[0].edition_number, editionDate.split('-').join('')));
-                            controller.play.call(self);
-                        } else {
-                            self.response.speak(strings.edition_no_number_unavailable);
-                            self.emit(":responseReady");
-                        }
+                                self.response.speak(strings.playing_edition_date.format(results[0].edition_number, editionDate.split('-').join('')));
+                                controller.play.call(self);
+                            } else {
+                                self.response.speak(strings.edition_no_number_unavailable);
+                                self.emit(":responseReady");
+                            }
+                        });
                     });
                 } else {
                     self.response.speak(strings.edition_no_number_unavailable);
@@ -163,7 +182,7 @@ var stateHandlers = {
             this.emit(':responseReady');
         },
         'SessionEndedRequest' : function () {
-            // No session ended logic
+            pool.end();
         },
         'Unhandled' : function () {
             var message = strings.unhandled_request;
@@ -201,19 +220,19 @@ var stateHandlers = {
             } else {
                 self.handler.state = constants.states.RESUME_DECISION_MODE;
 
-                var currentConnection = getMySQLConnection();
+                pool.getConnection(function(err, currentConnection) {
+                    currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                        currentConnection.release();
 
-                currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
-                    if (error) throw error;
+                        if (error) throw error;
 
-                    message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
-                    reprompt = strings.resume_launch_reprompt;
+                        message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                        reprompt = strings.resume_launch_reprompt;
 
-                    self.response.speak(message).listen(reprompt);
-                    self.emit(':responseReady');
-                });      
-
-                currentConnection.end();          
+                        self.response.speak(message).listen(reprompt);
+                        self.emit(':responseReady');
+                    });      
+                });       
             }
         },
         'Chatterbox' : function () { controller.play.call(this); },
@@ -243,7 +262,7 @@ var stateHandlers = {
             this.emit(':responseReady');
         },
         'SessionEndedRequest' : function () {
-            // No session ended logic
+            pool.end();
         },
         'Unhandled' : function () {
             var message = strings.play_mode_unhandled_request;
@@ -266,27 +285,27 @@ var stateHandlers = {
          */
         'LaunchRequest' : function () {
             var self = this;
-            var currentConnection = getMySQLConnection();
+            
+            pool.getConnection(function(err, currentConnection) {
+                currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                    currentConnection.release();
+                    if (error) throw error;
 
-            currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
-                if (error) throw error;
+                    if (results.length < 1) {
+                        controller.reset.call(self);
 
-                if (results.length < 1) {
-                    controller.reset.call(self);
+                        self.handler.state = constants.states.START_MODE;
+                        self.emitWithState("Chatterbox");
+                        return;
+                    }
 
-                    self.handler.state = constants.states.START_MODE;
-                    self.emitWithState("Chatterbox");
-                    return;
-                }
+                    var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                    var reprompt = strings.resume_launch_reprompt;
 
-                var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
-                var reprompt = strings.resume_launch_reprompt;
-
-                self.response.speak(message).listen(reprompt);
-                self.emit(':responseReady');
-            });      
-
-            currentConnection.end();
+                    self.response.speak(message).listen(reprompt);
+                    self.emit(':responseReady');
+                });      
+            });
         },
         'Chatterbox' : function() {
             this.handler.state = constants.states.START_MODE;
@@ -314,19 +333,20 @@ var stateHandlers = {
         },
         'AMAZON.HelpIntent' : function () {
             var self = this;
-            var currentConnection = getMySQLConnection();
+            
+            pool.getConnection(function(err, currentConnection) {
+                currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                    currentConnection.release();
 
-            currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
-                if (error) throw error;
+                    if (error) throw error;
 
-                var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
-                var reprompt = strings.resume_launch_reprompt;
+                    var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                    var reprompt = strings.resume_launch_reprompt;
 
-                self.response.speak(message).listen(reprompt);
-                self.emit(':responseReady');
-            });      
-
-            currentConnection.end();
+                    self.response.speak(message).listen(reprompt);
+                    self.emit(':responseReady');
+                });      
+            });
         },
         'AMAZON.StopIntent' : function () {
             var message = strings.exit_message;
@@ -339,7 +359,7 @@ var stateHandlers = {
             this.emit(':responseReady');
         },
         'SessionEndedRequest' : function () {
-            // No session ended logic
+            pool.end();
         },
         'Unhandled' : function () {
             var message = strings.resume_unhandled_request;
@@ -381,27 +401,27 @@ var controller = function () {
                 // Since play behavior is REPLACE_ALL, enqueuedToken attribute need to be set to null.
                 self.attributes['enqueuedToken'] = null;
 
-                var currentConnection = getMySQLConnection();
+                pool.getConnection(function(err, currentConnection) {
+                    currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
+                        currentConnection.release();
 
-                currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
-                    if (error) throw error;
+                        if (error) throw error;
 
-                    if (canThrowCard.call(self)) {
-                        var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
-                        var cardContent = results[0].track_title;
-                        self.response.cardRenderer(cardTitle, cardContent, null);
-                    }
+                        if (canThrowCard.call(self)) {
+                            var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
+                            var cardContent = results[0].track_title;
+                            self.response.cardRenderer(cardTitle, cardContent, null);
+                        }
 
-                    try {
-                        self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
-                    } catch (ex) {
-                        console.log("Error in playback: ", ex);
-                    }
+                        try {
+                            self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
+                        } catch (ex) {
+                            console.log("Error in playback: ", ex);
+                        }
 
-                    self.emit(':responseReady');
-                });      
-
-                currentConnection.end();
+                        self.emit(':responseReady');
+                    });      
+                });
             }
         },
         stop: function () {
@@ -424,7 +444,6 @@ var controller = function () {
              */
             var self = this;
             var editionTrackIndex = 0;
-            var currentConnection = getMySQLConnection();
             var editionTrackCount = 0;
             
             if (typeof(self.attributes['editionCurrentTrack']) == "undefined" || isNaN(Number(self.attributes['editionCurrentTrack'])))
@@ -434,39 +453,41 @@ var controller = function () {
 
             editionTrackIndex++;            
 
-            currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
-                if (error) throw error;
+            pool.getConnection(function(err, currentConnection) {
+                currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                    currentConnection.release();
 
-                // Check for last audio file.
-                if (editionTrackIndex > results[0].track_count) {
-                    if (self.attributes['loop']) {
-                        editionTrackIndex = 1;
-                    } else {
-                        // Reached at the end. Thus reset state to start mode and stop playing.
-                        self.attributes["playbackFinished"] = true;
+                    if (error) throw error;
 
-                        var message = strings.next_track_end_of_list;
-                        self.response.speak(message);
+                    // Check for last audio file.
+                    if (editionTrackIndex > results[0].track_count) {
+                        if (self.attributes['loop']) {
+                            editionTrackIndex = 1;
+                        } else {
+                            // Reached at the end. Thus reset state to start mode and stop playing.
+                            self.attributes["playbackFinished"] = true;
 
-                        try {
-                            self.response.audioPlayerStop();
-                        } catch (ex) {
-                            console.log("Error in stopping playback: ", ex);
+                            var message = strings.next_track_end_of_list;
+                            self.response.speak(message);
+
+                            try {
+                                self.response.audioPlayerStop();
+                            } catch (ex) {
+                                console.log("Error in stopping playback: ", ex);
+                            }
+
+                            return self.emit(':responseReady');
                         }
-
-                        return self.emit(':responseReady');
                     }
-                }
 
-                // Set values to attributes.
-                self.attributes['editionCurrentTrack'] = editionTrackIndex;
-                self.attributes['offsetInMilliseconds'] = 0;
-                self.attributes['playbackEditionCurrentTrackChanged'] = true;
+                    // Set values to attributes.
+                    self.attributes['editionCurrentTrack'] = editionTrackIndex;
+                    self.attributes['offsetInMilliseconds'] = 0;
+                    self.attributes['playbackEditionCurrentTrackChanged'] = true;
 
-                controller.play.call(self);
-            });      
-
-            currentConnection.end();
+                    controller.play.call(self);
+                });      
+            });
         },
         playPrevious: function () {
             /*
@@ -487,23 +508,23 @@ var controller = function () {
             // Check for last audio file.
             if (editionTrackIndex < 1) {
                 if (self.attributes['loop']) {
-                    var currentConnection = getMySQLConnection();
-                    
-                    currentConnection.query("SELECT MAX(`track_number`) FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
-                        if (error) throw error;
+                    pool.getConnection(function(err, currentConnection) {                    
+                        currentConnection.query("SELECT MAX(`track_number`) FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
+                            currentConnection.release();
 
-                        editionTrackIndex = results[0].track_number;
+                            if (error) throw error;
 
-                        // Set values to attributes.
-                        self.attributes['editionCurrentTrack'] = editionTrackIndex;
-                        self.attributes['offsetInMilliseconds'] = 0;
-                        self.attributes['playbackEditionCurrentTrackChanged'] = true;
+                            editionTrackIndex = results[0].track_number;
 
-                        controller.play.call(self);
-                        return;
+                            // Set values to attributes.
+                            self.attributes['editionCurrentTrack'] = editionTrackIndex;
+                            self.attributes['offsetInMilliseconds'] = 0;
+                            self.attributes['playbackEditionCurrentTrackChanged'] = true;
+
+                            controller.play.call(self);
+                            return;
+                        });
                     });
-
-                    currentConnection.end();
                 } else {
                     // Reached at the end. Thus reset state to start mode and stop playing.
                     self.handler.state = constants.states.START_MODE;
@@ -522,6 +543,7 @@ var controller = function () {
                     return self.emit(':responseReady');
                 }
             }
+
             // Set values to attributes.
             self.attributes['editionCurrentTrack'] = editionTrackIndex;
             self.attributes['offsetInMilliseconds'] = 0;
@@ -582,20 +604,6 @@ function canThrowCard() {
     }
 
     return false;
-}
-
-function getMySQLConnection() {
-    var connection = mysql.createConnection({
-        host: appInfo.mysql_data.host,
-        user: appInfo.mysql_data.username,
-        password: appInfo.mysql_data.password,
-        database: appInfo.mysql_data.database_name,
-        ssl: "Amazon RDS"
-    });
-
-    connection.connect();
-
-    return connection;
 }
 
 function getThursdayOfISOWeek(w, y) {
