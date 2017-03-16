@@ -140,6 +140,8 @@ var stateHandlers = {
                 if (editionDate.length > 0) {
                     pool.getConnection(function(err, currentConnection) {
                         currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = '?'", [ editionDate ], function(error, results, fields) {
+                            currentConnection.release();
+                            
                             if (error) throw error;
 
                             if (results.length > 0) {
@@ -163,8 +165,6 @@ var stateHandlers = {
                     self.emit(":responseReady");
                 }
             }
-
-            currentConnection.end();
         },
         'AMAZON.HelpIntent' : function () {
             var message = strings.start_mode_help;
