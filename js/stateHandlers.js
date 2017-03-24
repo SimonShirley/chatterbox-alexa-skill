@@ -127,7 +127,7 @@ var stateHandlers = {
                 });
             } else { // if the value is some sort of date
                 var editionDate = "";
-                var dateMatches = inputValue.match(/(\d{4})-W([01-53])/) || [];
+                var dateMatches = inputValue.match(/(\d{4})-W([0-4][0-9]|5[0-3]){1}/) || [];
                 var datePatternMatch = inputValue.match(/^[0-9]{4}-(((0[13578]|(10|12))-(0[1-9]|[1-2][0-9]|3[0-1]))|(02-(0[1-9]|[1-2][0-9]))|((0[469]|11)-(0[1-9]|[1-2][0-9]|30)))$/) || [];
 
                 if (datePatternMatch.length > 0) {
