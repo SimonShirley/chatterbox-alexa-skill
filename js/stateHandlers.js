@@ -23,15 +23,6 @@ var pool = mysql.createPool({
     ssl: "Amazon RDS"
 });
 
-// setup Google Analytics
-if (this.attributes["ua-id"] == null) {
-    var visitor = ua(appInfo.universal_analytics_id, { uid: this.attributes["ua-id"], https: true });
-}
-else {
-    visitor = ua(appInfo.universal_analytics_id, { https: true });
-    this.attributes["ua-id"] = visitor.uid;
-}
-
 var stateHandlers = {
     startModeIntentHandlers : Alexa.CreateStateHandler(constants.states.START_MODE, {
         /*
@@ -56,7 +47,7 @@ var stateHandlers = {
             if (!self.attributes['currentEditionId']) {
                 // Initialize Attributes if undefined.
                 controller.reset.call(self);
-                
+
                 //  Change state to START_MODE
                 self.handler.state = constants.states.START_MODE;
 
@@ -420,12 +411,16 @@ var controller = function () {
                         }
 
                         // track event
+                        setUAVisitor.call(self);
+                        
                         visitor.event({
                             eventCategory: "Alexa",
                             eventAction: "Play",
                             eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
                             p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
-                        });
+                        }).send();
+
+                        self.attributes["ua-id"] = visitor.uid;
 
                         try {
                             self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
@@ -656,4 +651,15 @@ function getDateAsNumber(stringDate) {
         recorded_day = "0".concat(recorded_day);
 
     return [recorded_year, recorded_month, recorded_day].join('');
+}
+
+function setUAVisitor() {
+    // setup Google Analytics
+    if (this.attributes["ua-id"] == null) {
+        visitor = ua(appInfo.universal_analytics_id, { uid: this.attributes["ua-id"], https: true });
+    }
+    else {
+        visitor = ua(appInfo.universal_analytics_id, { https: true });
+        this.attributes["ua-id"] = visitor.uid;
+    }
 }
