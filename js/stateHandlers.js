@@ -57,9 +57,13 @@ var stateHandlers = {
 
                         if (error) throw error;
 
+                        if (results.length > 0) {
                             self.attributes["currentEditionId"] = results[0].id;
-
                             controller.play.call(self);
+                        } else {
+                            self.response.speak(strings.edition_no_number_unavailable);
+                            self.emit(":responseReady");
+                        }
                     });
                 });
             } else {
@@ -223,11 +227,19 @@ var stateHandlers = {
 
                         if (error) throw error;
 
-                        message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
-                        reprompt = strings.resume_launch_reprompt;
+                        if (results.length > 0) {
+                            message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
+                            reprompt = strings.resume_launch_reprompt;
 
-                        self.response.speak(message).listen(reprompt);
-                        self.emit(':responseReady');
+                            self.response.speak(message).listen(reprompt);
+                            self.emit(':responseReady');
+                        } else {
+                            self.handler.state = constants.states.START_MODE;
+                            self.response.speak(strings.start_mode_launch_message).listen(strings.start_mode_launch_reprompt);
+                            self.emit(':responseReady');
+
+                            return;
+                        }
                     });      
                 }); 
             }
