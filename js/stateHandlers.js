@@ -134,7 +134,7 @@ var stateHandlers = {
                     editionDate = inputValue;
                 } else if (dateMatches.length > 0) {
                     try {
-                        editionDate = getThursdayOfISOWeek(dateMatches[1], dateMatches[0]);
+                        editionDate = getThursdayOfISOWeek(dateMatches[2], dateMatches[1]);
                     } catch (ex) { }
                 }
 
@@ -631,12 +631,14 @@ function getThursdayOfISOWeek(w, y) {
     var simple = new Date(y, 0, 1 + (w - 1) * 7);
     var dow = simple.getDay();
     var ISOweekStart = simple;
+
     if (dow <= 4)
         ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
     else
         ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
 
-    ISOweekStart = ISOweekStart.setDate(result.getDate() + 3); // add 3 days as the ISO week begins on a Monday
+    // add 3 days as the ISO week begins on a Monday
+    ISOweekStart.setDate(ISOweekStart.getDate() + 3);
 
     var month = '' + (ISOweekStart.getMonth() + 1),
         day = '' + ISOweekStart.getDate(),
