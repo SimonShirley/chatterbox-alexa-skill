@@ -4,10 +4,13 @@ var Alexa = require('alexa-sdk');
 var format = require('string-format');
 var mysql = require('mysql');
 var dateformat = require('dateformat');
+var ua = require('universal-analytics');
 
 var constants = require('./constants');
 var strings = require('./strings');
 var appInfo = require("./appInfo");
+
+var visitor = null; // Google analytics visitor object
 
 format.extend(String.prototype);
 
@@ -19,6 +22,15 @@ var pool = mysql.createPool({
     database: appInfo.mysql_data.database_name,
     ssl: "Amazon RDS"
 });
+
+// setup Google Analytics
+if (this.attributes["ua-id"] == null) {
+    var visitor = ua(appInfo.universal_analytics_id, { uid: this.attributes["ua-id"], https: true });
+}
+else {
+    visitor = ua(appInfo.universal_analytics_id, { https: true });
+    this.attributes["ua-id"] = visitor.uid;
+}
 
 var stateHandlers = {
     startModeIntentHandlers : Alexa.CreateStateHandler(constants.states.START_MODE, {
@@ -59,10 +71,10 @@ var stateHandlers = {
                         currentConnection.release();
 
                         if (error) throw error;
-                        
-                        self.attributes["currentEditionId"] = results[0].id;
 
-                        controller.play.call(self);
+                            self.attributes["currentEditionId"] = results[0].id;
+
+                            controller.play.call(self);
                     });
                 });
             } else {
@@ -232,7 +244,7 @@ var stateHandlers = {
                         self.response.speak(message).listen(reprompt);
                         self.emit(':responseReady');
                     });      
-                });       
+                }); 
             }
         },
         'Chatterbox' : function () { controller.play.call(this); },
@@ -402,7 +414,7 @@ var controller = function () {
                 self.attributes['enqueuedToken'] = null;
 
                 pool.getConnection(function(err, currentConnection) {
-                    currentConnection.query("SELECT `edition`.`edition_number`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
+                    currentConnection.query("SELECT `edition`.`edition_number`, `edition`.`recorded_date`, `edition`.`page_url`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
                         currentConnection.release();
 
                         if (error) throw error;
@@ -412,6 +424,14 @@ var controller = function () {
                             var cardContent = results[0].track_title;
                             self.response.cardRenderer(cardTitle, cardContent, null);
                         }
+
+                        // track event
+                        visitor.event({
+                            eventCategory: "Alexa",
+                            eventAction: "Play",
+                            eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
+                            p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
+                        });
 
                         try {
                             self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
