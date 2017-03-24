@@ -39,11 +39,8 @@ var stateHandlers = {
          */
         'LaunchRequest' : function () {
             // Initialize Attributes
-            this.attributes['editionCurrentTrack'] = 1;
-            this.attributes['offsetInMilliseconds'] = 0;
-            this.attributes['loop'] = false;
-            this.attributes['shuffle'] = false;
-            this.attributes['playbackEditionCurrentTrackChanged'] = true;
+            controller.reset.call(this);
+
             //  Change state to START_MODE
             this.handler.state = constants.states.START_MODE;
 
@@ -58,11 +55,8 @@ var stateHandlers = {
 
             if (!self.attributes['currentEditionId']) {
                 // Initialize Attributes if undefined.
-                self.attributes['editionCurrentTrack'] = 1;
-                self.attributes['offsetInMilliseconds'] = 0;
-                self.attributes['loop'] = false;
-                self.attributes['shuffle'] = false;
-                self.attributes['playbackEditionCurrentTrackChanged'] = true;
+                controller.reset.call(self);
+                
                 //  Change state to START_MODE
                 self.handler.state = constants.states.START_MODE;
 
@@ -605,6 +599,8 @@ var controller = function () {
             this.attributes['playbackEditionCurrentTrackChanged'] = true;
             this.attributes["playbackFinished"] = true;
             this.attributes["currentEditionId"] = null;
+            this.attributes['loop'] = false;
+            this.attributes['shuffle'] = false;
         }
     }
 }();
