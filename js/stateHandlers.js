@@ -420,8 +420,6 @@ var controller = function () {
                             p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
                         }).send();
 
-                        self.attributes["ua-id"] = visitor.uid;
-
                         try {
                             self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
                         } catch (ex) {
@@ -654,12 +652,10 @@ function getDateAsNumber(stringDate) {
 }
 
 function setUAVisitor() {
-    // setup Google Analytics
     if (this.attributes["ua-id"] == null) {
-        visitor = ua(appInfo.universal_analytics_id, { uid: this.attributes["ua-id"], https: true });
-    }
-    else {
         visitor = ua(appInfo.universal_analytics_id, { https: true });
-        this.attributes["ua-id"] = visitor.uid;
+        this.attributes["ua-id"] = visitor.cid;
+    } else {
+        visitor = ua(appInfo.universal_analytics_id, { https: true, cid: this.attributes["ua-id"] });
     }
 }
