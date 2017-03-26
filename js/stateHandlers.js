@@ -127,6 +127,13 @@ var stateHandlers = {
                 });
             } else { // if the value is some sort of date
                 var editionDate = "";
+
+                if (typeof inputValue === "undefined") {
+                    self.response.speak(strings.edition_no_number_unavailable);
+                    self.emit(":responseReady");
+                    return;
+                }
+
                 var dateMatches = inputValue.match(/(\d{4})-W([0-4][0-9]|5[0-3]){1}/) || [];
                 var datePatternMatch = inputValue.match(/^[0-9]{4}-(((0[13578]|(10|12))-(0[1-9]|[1-2][0-9]|3[0-1]))|(02-(0[1-9]|[1-2][0-9]))|((0[469]|11)-(0[1-9]|[1-2][0-9]|30)))$/) || [];
 
@@ -135,7 +142,11 @@ var stateHandlers = {
                 } else if (dateMatches.length > 0) {
                     try {
                         editionDate = getThursdayOfISOWeek(dateMatches[2], dateMatches[1]);
-                    } catch (ex) { }
+                    } catch (ex) { 
+                        self.response.speak(strings.edition_no_number_unavailable);
+                        self.emit(":responseReady");
+                        return;
+                    }
                 }
 
                 if (editionDate.length > 0) {
