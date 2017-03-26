@@ -416,29 +416,37 @@ var controller = function () {
 
                         if (error) throw error;
 
-                        if (canThrowCard.call(self)) {
-                            var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
-                            var cardContent = results[0].track_title;
-                            self.response.cardRenderer(cardTitle, cardContent, null);
+                        if (results.length < 1) {
+                            if (canThrowCard.call(self)) {
+                                var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
+                                var cardContent = results[0].track_title;
+                                self.response.cardRenderer(cardTitle, cardContent, null);
+                            }
+
+                            if (typeof appInfo.universal_analytics_id !== 'undefined') {
+                                if (appInfo.universal_analytics_id != "") {
+                                    // track event
+                                    setUAVisitor.call(self);
+                                    
+                                    visitor.event({
+                                        eventCategory: "Alexa",
+                                        eventAction: "Play",
+                                        eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
+                                        p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
+                                    }).send();
+                                }
+                            }
+
+                            try {
+                                self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
+                            } catch (ex) {
+                                console.log("Error in playback: ", ex);
+                            }
+                        } else {
+                            self.response.speak(strings.edition_no_number_unavailable);
                         }
 
-                        // track event
-                        setUAVisitor.call(self);
-                        
-                        visitor.event({
-                            eventCategory: "Alexa",
-                            eventAction: "Play",
-                            eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
-                            p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
-                        }).send();
-
-                        try {
-                            self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
-                        } catch (ex) {
-                            console.log("Error in playback: ", ex);
-                        }
-
-                        self.emit(':responseReady');
+                        self.emit(":responseReady");
                     });      
                 });
             }
