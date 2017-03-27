@@ -459,7 +459,7 @@ var controller = function () {
                             throw error;
                         }
 
-                        if (results.length < 1) {
+                        if (results.length > 0) {
                             if (canThrowCard.call(self)) {
                                 var cardTitle = 'Chatterbox - Edition {0}'.format(results[0].edition_number.toString());
                                 var cardContent = results[0].track_title;
