@@ -41,7 +41,7 @@ var stateHandlers = {
             this.response.speak(message).listen(reprompt);
             this.emit(':responseReady');
         },
-        'Chatterbox' : function () {
+        'ChatterboxTalkingNewspaper' : function () {
             var self = this;
 
             if (!self.attributes['currentEditionId']) {
@@ -70,7 +70,7 @@ var stateHandlers = {
                 controller.play.call(self);
             }
         },
-        'ChatterboxLatest' : function() {
+        'ChatterboxTalkingNewspaperLatest' : function() {
             var self = this;
 
             //  Change state to PLAY_MODE
@@ -96,7 +96,7 @@ var stateHandlers = {
                 });
             });
         },
-        'ChatterboxSpecificEdition' : function() {
+        'ChatterboxTalkingNewspaperSpecificEdition' : function() {
             var self = this;
             var inputValue = self.event.request.intent.slots.edition_number.value;
 
@@ -254,14 +254,14 @@ var stateHandlers = {
                 }); 
             }
         },
-        'Chatterbox' : function () { controller.play.call(this); },
-        'ChatterboxLatest' : function () {
+        'ChatterboxTalkingNewspaper' : function () { controller.play.call(this); },
+        'ChatterboxTalkingNewspaperLatest' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxLatest');
+            this.emitWithState('ChatterboxTalkingNewspaperLatest');
         },
-        'ChatterboxSpecificEdition' : function () {
+        'ChatterboxTalkingNewspaperSpecificEdition' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxSpecificEdition');
+            this.emitWithState('ChatterboxTalkingNewspaperSpecificEdition');
         },
         'AMAZON.NextIntent' : function () { controller.playNext.call(this) },
         'AMAZON.PreviousIntent' : function () { controller.playPrevious.call(this) },
@@ -314,7 +314,7 @@ var stateHandlers = {
                         controller.reset.call(self);
 
                         self.handler.state = constants.states.START_MODE;
-                        self.emitWithState("Chatterbox");
+                        self.emitWithState("ChatterboxTalkingNewspaper");
                         return;
                     }
 
@@ -326,18 +326,18 @@ var stateHandlers = {
                 });      
             });
         },
-        'Chatterbox' : function() {
+        'ChatterboxTalkingNewspaper' : function() {
             this.handler.state = constants.states.START_MODE;
             this.attributes["playbackFinished"] = false;
-            this.emitWithState('Chatterbox');
+            this.emitWithState('ChatterboxTalkingNewspaper');
         },
-        'ChatterboxLatest' : function () {
+        'ChatterboxTalkingNewspaperLatest' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxLatest');
+            this.emitWithState('ChatterboxTalkingNewspaperLatest');
         },
-        'ChatterboxSpecificEdition' : function () {
+        'ChatterboxTalkingNewspaperSpecificEdition' : function () {
             this.handler.state = constants.states.START_MODE;
-            this.emitWithState('ChatterboxSpecificEdition');
+            this.emitWithState('ChatterboxTalkingNewspaperSpecificEdition');
         },
         'AMAZON.YesIntent' : function () { controller.play.call(this) },
         'AMAZON.NoIntent' : function () {

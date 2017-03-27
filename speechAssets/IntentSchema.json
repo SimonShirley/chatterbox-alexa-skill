@@ -1,13 +1,13 @@
 {
   "intents": [
     {
-      "intent": "Chatterbox"
+      "intent": "ChatterboxTalkingNewspaper"
     },
     {
-      "intent": "ChatterboxLatest"
+      "intent": "ChatterboxTalkingNewspaperLatest"
     },
     {
-      "intent": "ChatterboxSpecificEdition",
+      "intent": "ChatterboxTalkingNewspaperSpecificEdition",
       "slots": [
         {
           "name": "edition_number",
