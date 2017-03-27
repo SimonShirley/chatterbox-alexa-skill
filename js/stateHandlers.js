@@ -55,7 +55,11 @@ var stateHandlers = {
                     currentConnection.query("SELECT `id` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
                         currentConnection.release();
 
-                        if (error) throw error;
+                        if (error) {
+                            console.log("Error in START_MODE.ChatterboxTalkingNewspaper: ", error);
+                            console.log("Results: ", results);
+                            throw error;
+                        }
 
                         if (results.length > 0) {
                             self.attributes["currentEditionId"] = results[0].id;
@@ -80,7 +84,11 @@ var stateHandlers = {
                 currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` ORDER BY `recorded_date` DESC LIMIT 1", function(error, results, fields) {
                     currentConnection.release();
 
-                    if (error) throw error;
+                    if (error) {
+                        console.log("Error in START_MODE.ChatterboxTalkingNewspaperLatest: ", error);
+                        console.log("Results: ", results);
+                        throw error;
+                    }
                     
                     if (results.length > 0) {
                         controller.reset.call(self);
@@ -113,7 +121,11 @@ var stateHandlers = {
                     currentConnection.query("SELECT `id`, `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `edition_number` = ?", [ self.event.request.intent.slots.edition_number.value ], function(error, results, fields) {
                         currentConnection.release();
 
-                        if (error) throw error;
+                        if (error) {
+                            console.log("Error in START_MODE.ChatterboxTalkingNewspaperSpecificEdition (Number): ", error);
+                            console.log("Results: ", results);
+                            throw error;
+                        }
 
                         if (results.length > 0) {
                             //  Change state to PLAY_MODE
@@ -153,7 +165,11 @@ var stateHandlers = {
                         currentConnection.query("SELECT `id`, `edition_number` FROM `tbl_edition` WHERE `recorded_date` = ?", [ editionDate ], function(error, results, fields) {
                             currentConnection.release();
                             
-                            if (error) throw error;
+                            if (error) {
+                                console.log("Error in START_MODE.ChatterboxTalkingNewspaperSpecificEdition (Date Pattern): ", error);
+                                console.log("Results: ", results);
+                                throw error;
+                            }
 
                             if (results.length > 0) {
                                 //  Change state to PLAY_MODE
@@ -235,7 +251,11 @@ var stateHandlers = {
                     currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                         currentConnection.release();
 
-                        if (error) throw error;
+                        if (error) {
+                            console.log("Error in PLAY_MODE.LaunchRequest: ", error);
+                            console.log("Results: ", results);
+                            throw error;
+                        }
 
                         if (results.length > 0) {
                             message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
@@ -308,7 +328,12 @@ var stateHandlers = {
             pool.getConnection(function(err, currentConnection) {
                 currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                     currentConnection.release();
-                    if (error) throw error;
+                    
+                    if (error) {
+                        console.log("Error in RESUME_DECISION_MODE.LaunchRequest: ", error);
+                        console.log("Results: ", results);
+                        throw error;
+                    }
 
                     if (results.length < 1) {
                         controller.reset.call(self);
@@ -357,7 +382,11 @@ var stateHandlers = {
                 currentConnection.query("SELECT `edition_number`, `recorded_date` FROM `tbl_edition` WHERE `id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                     currentConnection.release();
 
-                    if (error) throw error;
+                    if (error) {
+                        console.log("Error in RESUME_DECISION_MODE.AMAZON.HelpIntent: ", error);
+                        console.log("Results: ", results);
+                        throw error;
+                    }
 
                     var message = strings.resume_launch_message.format(results[0].edition_number.toString(), dateformat(results[0].recorded_date, "yyyymmdd"));
                     var reprompt = strings.resume_launch_reprompt;
@@ -424,7 +453,11 @@ var controller = function () {
                     currentConnection.query("SELECT `edition`.`edition_number`, `edition`.`recorded_date`, `edition`.`page_url`, `tracks`.`track_title`, `tracks`.`track_url` FROM `tbl_edition` AS `edition` INNER JOIN `tbl_edition_tracks` AS `tracks` ON `tracks`.`edition_id` =  `edition`.`id` WHERE `edition`.`id` = ? AND `tracks`.`track_number` = ?", [self.attributes["currentEditionId"], self.attributes["editionCurrentTrack"]], function(error, results, fields) {
                         currentConnection.release();
 
-                        if (error) throw error;
+                        if (error) {
+                            console.log("Error in controller.play: ", error);
+                            console.log("Results: ", results);
+                            throw error;
+                        }
 
                         if (results.length < 1) {
                             if (canThrowCard.call(self)) {
@@ -494,7 +527,11 @@ var controller = function () {
                 currentConnection.query("SELECT COUNT(*) AS `track_count` FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                     currentConnection.release();
 
-                    if (error) throw error;
+                    if (error) {
+                        console.log("Error in controller.playNext: ", error);
+                        console.log("Results: ", results);
+                        throw error;
+                    }
 
                     // Check for last audio file.
                     if (editionTrackIndex > results[0].track_count) {
@@ -549,7 +586,11 @@ var controller = function () {
                         currentConnection.query("SELECT MAX(`track_number`) FROM `tbl_edition_tracks` WHERE `edition_id` = ?", [self.attributes["currentEditionId"]], function(error, results, fields) {
                             currentConnection.release();
 
-                            if (error) throw error;
+                            if (error) {
+                                console.log("Error in controller.playPrevious: ", error);
+                                console.log("Results: ", results);
+                                throw error;
+                            }
 
                             editionTrackIndex = results[0].track_number;
 
