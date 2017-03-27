@@ -476,6 +476,10 @@ var controller = function () {
                                         eventAction: "Play",
                                         eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
                                         p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
+                                    }, function(error) {
+                                        console.log("Error in controller.play.analytics: ", error);
+                                        console.log("Results: ", results);
+                                        // throw error;
                                     }).send();
                                 }
                             }
