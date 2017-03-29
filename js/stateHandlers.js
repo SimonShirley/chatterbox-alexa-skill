@@ -490,6 +490,7 @@ var controller = function () {
                                 self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
                             } catch (ex) {
                                 console.log("Error in playback: ", ex);
+                                self.response.speak(strings.cannot_play_audio);
                             }
                         } else {
                             self.response.speak(strings.edition_no_number_unavailable);

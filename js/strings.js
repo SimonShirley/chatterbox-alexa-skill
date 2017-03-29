@@ -17,7 +17,8 @@ var strings = {
     'no_shuffle' : 'I\'m sorry. Chatterbox Talking Newspaper tracks cannot be shuffled.',
     'edition_unavailable' : 'I\'m sorry, edition number {0} is currently unavailable',
     'edition_no_number_unavailable' : 'I\'m sorry. This edition is currently unavailable',
-    'playing_edition_date' : 'Playing edition number <say-as interpret-as="cardinal">{0}</say-as>, recorded on <say-as interpret-as="date" format="dmy">{1}</say-as>.'
+    'playing_edition_date' : 'Playing edition number <say-as interpret-as="cardinal">{0}</say-as>, recorded on <say-as interpret-as="date" format="dmy">{1}</say-as>.',
+    'cannot_play_audio' : 'I\'m sorry. There has been a problem playing this Chatterbox edition. Please try again later.'
 }
 
 module.exports = strings;
