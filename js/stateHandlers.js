@@ -4,13 +4,10 @@ var Alexa = require('alexa-sdk');
 var format = require('string-format');
 var mysql = require('mysql');
 var dateformat = require('dateformat');
-var ua = require('universal-analytics');
 
 var constants = require('./constants');
 var strings = require('./strings');
 var appInfo = require("./appInfo");
-
-var visitor = null; // Google analytics visitor object
 
 format.extend(String.prototype);
 
@@ -466,26 +463,6 @@ var controller = function () {
                                 self.response.cardRenderer(cardTitle, cardContent, null);
                             }
 
-                            if (typeof appInfo.universal_analytics_id !== 'undefined') {
-                                if (appInfo.universal_analytics_id != "") {
-                                    // track event
-                                    setUAVisitor.call(self);
-                                    
-                                    visitor.event({
-                                        eventCategory: "Alexa",
-                                        eventAction: "Play",
-                                        eventLabel: "Edition {0}, Track {1}".format(results[0].edition_number, self.attributes['editionCurrentTrack']),
-                                        p: results[0].page_url.replace("http://www.cbtn.org.uk", "")
-                                    }, function(error) {
-                                        if (error) {
-                                            console.log("Error in controller.play.analytics: ", error);
-                                            console.log("Results: ", results);
-                                            // throw error;
-                                        }
-                                    }).send();
-                                }
-                            }
-
                             try {
                                 self.response.audioPlayerPlay(playBehavior, results[0].track_url, token, null, offsetInMilliseconds);
                             } catch (ex) {
@@ -729,13 +706,4 @@ function getDateAsNumber(stringDate) {
         recorded_day = "0".concat(recorded_day);
 
     return [recorded_year, recorded_month, recorded_day].join('');
-}
-
-function setUAVisitor() {
-    if (this.attributes["ua-id"] == null) {
-        visitor = ua(appInfo.universal_analytics_id, { https: true });
-        this.attributes["ua-id"] = visitor.cid;
-    } else {
-        visitor = ua(appInfo.universal_analytics_id, { https: true, cid: this.attributes["ua-id"] });
-    }
 }
